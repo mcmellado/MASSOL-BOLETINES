@@ -35,6 +35,15 @@
         @enderror
     </div>
 </div>
+<div class="mb-3">
+    <label for="codigo_postal" class="form-label">Código postal</label>
+    <input type="text"
+           name="codigo_postal"
+           id="codigo_postal"
+           class="form-control"
+           value="{{ old('codigo_postal', $cliente->codigo_postal ?? '') }}"
+           required>
+</div>
 
 <div class="row">
     <div class="col-md-4 mb-3">

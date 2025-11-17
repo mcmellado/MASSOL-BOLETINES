@@ -89,129 +89,171 @@ class BoletinController extends Controller
     }
 
     public function store(Request $request)
-    {
-        $marcasInversor = [
-            'Huawei',
-            'Fronius',
-            'Solax',
-            'Victron',
-            'SMA',
-            'Kostal',
-            'FOX',
-        ];
+{
+    $marcasInversor = [
+        'Huawei',
+        'Fronius',
+        'Solax',
+        'Victron',
+        'SMA',
+        'Kostal',
+        'FOX',
+    ];
 
-        $tiposInstalacionElectrica = ['monofasica', 'trifasica'];
-        $tensionesSuministro       = ['230V', '400V'];
-        $tiposInstalacion          = ['nueva', 'ampliacion'];
+    $tiposInstalacionElectrica = ['monofasica', 'trifasica'];
+    $tensionesSuministro       = ['230V', '400V'];
+    $tiposInstalacion          = ['nueva', 'ampliacion'];
 
-        $tiposCubierta = [
-            'instalación coplanar',
-            'instalación aporticada',
-            'instalación en estructura tipo pérgola',
-        ];
+    $tiposCubierta = [
+        'instalación coplanar',
+        'instalación aporticada',
+        'instalación en estructura tipo pérgola',
+    ];
 
-        $modelosPlaca = [
-            'YINGLI 330',
-            'ELEK 270',
-            'PEIMAN 420W',
-            'MUNCHEN/ AS-6P-320W',
-            'LONGI 445W',
-            'LONGI 550W',
-            'LONGI 555W',
-            'LONGI 540W',
-            'LONGI 545W',
-            'LONGI 560W',
-            'LONGI 570W',
-            'LONGI 640W',
-            'RISEN 270W',
-            'RISEN 435W',
-            'RISEN 400W',
-            'RISEN 405W',
-            'RISEN 410W',
-            'RISEN 450W',
-            'RISEN 545W',
-            'RISEN 450W',
-        ];
+    // Modelos de placa que salen en el <select>
+    $modelosPlaca = [
+        'YINGLI 330',
+        'ELEK 270',
+        'PEIMAN 420W',
+        'MUNCHEN/ AS-6P-320W',
+        'LONGI 445W',
+        'LONGI 550W',
+        'LONGI 555W',
+        'LONGI 540W',
+        'LONGI 545W',
+        'LONGI 560W',
+        'LONGI 570W',
+        'LONGI 640W',
+        'RISEN 270W',
+        'RISEN 435W',
+        'RISEN 400W',
+        'RISEN 405W',
+        'RISEN 410W',
+        'RISEN 450W',
+        'RISEN 545W',
+        'RISEN 450W',
+    ];
 
-        $validated = $request->validate([
-            'cliente_id'                => 'required|exists:clientes,id',
-            'fecha'                     => 'required|date',
-            'numero_registro'           => 'nullable|string|max:255',
-            'cups'                      => 'nullable|string|max:255',
-            'referencia_catastral'      => 'nullable|string|max:255',
-            'potencia_factura_luz'      => 'nullable|string|max:255',
-            'metros_cuadrados_vivienda' => 'nullable|string|max:255',
-            'potencia_pico'             => 'nullable|string|max:255',
+    $validated = $request->validate([
+        'cliente_id'                => 'required|exists:clientes,id',
+        'fecha'                     => 'required|date',
+        'numero_registro'           => 'nullable|string|max:255',
+        'cups'                      => 'nullable|string|max:255',
+        'referencia_catastral'      => 'nullable|string|max:255',
+        'potencia_factura_luz'      => 'nullable|string|max:255',
+        'metros_cuadrados_vivienda' => 'nullable|string|max:255',
+        // potencia_pico NO viene del form, la calculamos nosotros
+        // 'potencia_pico'          => 'nullable|string|max:255',
 
-            'marca_inversor'            => 'required|string|in:' . implode(',', $marcasInversor),
-            'modelo_inversor'           => 'nullable|string|max:255',
-            'potencia_inversores'       => 'nullable|string|max:255',
+        'marca_inversor'            => 'required|string|in:' . implode(',', $marcasInversor),
+        'modelo_inversor'           => 'nullable|string|max:255',
+        'potencia_inversores'       => 'nullable|string|max:255',
 
-            'tipo_instalacion_electrica'=> 'required|string|in:' . implode(',', $tiposInstalacionElectrica),
-            'tension_suministro'        => 'required|string|in:' . implode(',', $tensionesSuministro),
-            'tipo_instalacion'          => 'required|string|in:' . implode(',', $tiposInstalacion),
+        'tipo_instalacion_electrica'=> 'required|string|in:' . implode(',', $tiposInstalacionElectrica),
+        'tension_suministro'        => 'required|string|in:' . implode(',', $tensionesSuministro),
+        'tipo_instalacion'          => 'required|string|in:' . implode(',', $tiposInstalacion),
 
-            'tipos_cubierta'            => 'nullable|array',
-            'tipos_cubierta.*'          => 'string|in:' . implode(',', $tiposCubierta),
+        'tipos_cubierta'            => 'nullable|array',
+        'tipos_cubierta.*'          => 'string|in:' . implode(',', $tiposCubierta),
 
-            'tiene_bateria'             => 'nullable|boolean',
-            'potencia_bateria'          => 'nullable|string|max:255',
-            'numero_baterias'           => 'nullable|integer|min:0',
+        'tiene_bateria'             => 'nullable|boolean',
+        'potencia_bateria'          => 'nullable|string|max:255',
+        'numero_baterias'           => 'nullable|integer|min:0',
 
-            'modelo_placa'              => 'required|array|min:1',
-            'modelo_placa.*'            => 'required|string|in:' . implode(',', $modelosPlaca),
-            'potencia_placa'            => 'required|array|min:1',
-            'potencia_placa.*'          => 'required|string|max:255',
-            'cantidad_placas'           => 'required|array|min:1',
-            'cantidad_placas.*'         => 'required|integer|min:1',
-        ]);
+        // 👇 modelo_placa es el SELECT (LONGI 640W, etc.)
+        'modelo_placa'              => 'required|array|min:1',
+        'modelo_placa.*'            => 'required|string|in:' . implode(',', $modelosPlaca),
 
-        $validated['tiene_bateria'] = $request->boolean('tiene_bateria');
-        $validated['tipos_cubierta'] = $request->input('tipos_cubierta', []);
+        // 👇 ya NO hay potencia_placa en el formulario
+        // 'potencia_placa'         => 'required|array|min:1',
+        // 'potencia_placa.*'       => 'required|string|max:255',
 
-        $boletin = Boletin::create([
-            'cliente_id'                => $validated['cliente_id'],
-            'fecha'                     => $validated['fecha'],
-            'numero_registro'           => $validated['numero_registro'] ?? null,
-            'cups'                      => $validated['cups'] ?? null,
-            'referencia_catastral'      => $validated['referencia_catastral'] ?? null,
-            'potencia_factura_luz'      => $validated['potencia_factura_luz'] ?? null,
-            'metros_cuadrados_vivienda' => $validated['metros_cuadrados_vivienda'] ?? null,
-            'potencia_pico'             => $validated['potencia_pico'] ?? null,
+        'cantidad_placas'           => 'required|array|min:1',
+        'cantidad_placas.*'         => 'required|integer|min:1',
+    ]);
 
-            'marca_inversor'            => $validated['marca_inversor'],
-            'modelo_inversor'           => $validated['modelo_inversor'] ?? null,
-            'potencia_inversores'       => $validated['potencia_inversores'] ?? null,
+    // Normalizamos algunos campos
+    $validated['tiene_bateria']  = $request->boolean('tiene_bateria');
+    $validated['tipos_cubierta'] = $request->input('tipos_cubierta', []);
 
-            'tipo_instalacion_electrica'=> $validated['tipo_instalacion_electrica'],
-            'tension_suministro'        => $validated['tension_suministro'],
-            'tipo_instalacion'          => $validated['tipo_instalacion'],
+    /*
+     * CALCULAR POTENCIA PICO:
+     * potencia_pico = SUM( watts(modelo_placa) * cantidad_placas )
+     * Ej: "LONGI 640W" → 640
+     */
+    $modelos   = $validated['modelo_placa'];
+    $cantidades = $validated['cantidad_placas'];
 
-            'tipos_cubierta'            => $validated['tipos_cubierta'] ?? [],
+    $potenciaPicoTotal = 0;
 
-            'tiene_bateria'             => $validated['tiene_bateria'],
-            'potencia_bateria'          => $validated['potencia_bateria'] ?? null,
-            'numero_baterias'           => $validated['numero_baterias'] ?? null,
-        ]);
-
-        $modelosPlaca   = $validated['modelo_placa'];
-        $potenciasPlaca = $validated['potencia_placa'];
-        $cantidades     = $validated['cantidad_placas'];
-
-        foreach ($modelosPlaca as $index => $modelo) {
-            BoletinPlaca::create([
-                'boletin_id'     => $boletin->id,
-                'modelo_placa'   => $modelo,
-                'potencia_placa' => $potenciasPlaca[$index] ?? null,
-                'cantidad_placas'=> $cantidades[$index] ?? 0,
-            ]);
+    foreach ($modelos as $i => $modelo) {
+        // Buscamos el primer número en el texto del modelo
+        $watts = 0;
+        if (preg_match('/(\d+(\.\d+)?)/', $modelo, $m)) {
+            $watts = (float) $m[1];   // ejemplo: 640.0
         }
 
-        return redirect()
-            ->route('clientes.show', $boletin->cliente_id)
-            ->with('success', 'Boletín creado correctamente.');
+        $cantidad = (int) ($cantidades[$i] ?? 0);
+
+        if ($watts > 0 && $cantidad > 0) {
+            $potenciaPicoTotal += $watts * $cantidad;
+        }
     }
 
+    // Forzamos que potencia_pico SIEMPRE sea este valor calculado
+    $validated['potencia_pico'] = $potenciaPicoTotal;
+
+    // Crear boletín
+    $boletin = Boletin::create([
+        'cliente_id'                => $validated['cliente_id'],
+        'fecha'                     => $validated['fecha'],
+        'numero_registro'           => $validated['numero_registro'] ?? null,
+        'cups'                      => $validated['cups'] ?? null,
+        'referencia_catastral'      => $validated['referencia_catastral'] ?? null,
+        'potencia_factura_luz'      => $validated['potencia_factura_luz'] ?? null,
+        'metros_cuadrados_vivienda' => $validated['metros_cuadrados_vivienda'] ?? null,
+        'potencia_pico'             => $validated['potencia_pico'],
+
+        'marca_inversor'            => $validated['marca_inversor'],
+        'modelo_inversor'           => $validated['modelo_inversor'] ?? null,
+        'potencia_inversores'       => $validated['potencia_inversores'] ?? null,
+
+        'tipo_instalacion_electrica'=> $validated['tipo_instalacion_electrica'],
+        'tension_suministro'        => $validated['tension_suministro'],
+        'tipo_instalacion'          => $validated['tipo_instalacion'],
+
+        'tipos_cubierta'            => $validated['tipos_cubierta'] ?? [],
+
+        'tiene_bateria'             => $validated['tiene_bateria'],
+        'potencia_bateria'          => $validated['potencia_bateria'] ?? null,
+        'numero_baterias'           => $validated['numero_baterias'] ?? null,
+    ]);
+
+    // Guardar placas
+    $modelosPlacaForm = $validated['modelo_placa'];
+    $cantidadesForm   = $validated['cantidad_placas'];
+
+    foreach ($modelosPlacaForm as $index => $modelo) {
+        // Extraemos otra vez los W para guardarlos en potencia_placa
+        $watts = 0;
+        if (preg_match('/(\d+(\.\d+)?)/', $modelo, $m)) {
+            $watts = (float) $m[1];
+        }
+
+        BoletinPlaca::create([
+            'boletin_id'      => $boletin->id,
+            'modelo_placa'    => $modelo,                     // ej. "LONGI 640W"
+            'potencia_placa'  => $watts,                      // ej. 640
+            'cantidad_placas' => $cantidadesForm[$index] ?? 0,
+        ]);
+    }
+
+    return redirect()
+        ->route('clientes.show', $boletin->cliente_id)
+        ->with('success', 'Boletín creado correctamente.');
+}
+
+    
     public function show(Boletin $boletin)
     {
         $boletin->load('cliente', 'placas');
@@ -280,131 +322,170 @@ class BoletinController extends Controller
         ));
     }
 
-    public function update(Request $request, Boletin $boletin)
-    {
-        $marcasInversor = [
-            'Huawei',
-            'Fronius',
-            'Solax',
-            'Victron',
-            'SMA',
-            'Kostal',
-            'FOX',
-        ];
+   public function update(Request $request, Boletin $boletin)
+{
+    $marcasInversor = [
+        'Huawei',
+        'Fronius',
+        'Solax',
+        'Victron',
+        'SMA',
+        'Kostal',
+        'FOX',
+    ];
 
-        $tiposInstalacionElectrica = ['monofasica', 'trifasica'];
-        $tensionesSuministro       = ['230V', '400V'];
-        $tiposInstalacion          = ['nueva', 'ampliacion'];
+    $tiposInstalacionElectrica = ['monofasica', 'trifasica'];
+    $tensionesSuministro       = ['230V', '400V'];
+    $tiposInstalacion          = ['nueva', 'ampliacion'];
 
-        $tiposCubierta = [
-            'instalación coplanar',
-            'instalación aporticada',
-            'instalación en estructura tipo pérgola',
-        ];
+    $tiposCubierta = [
+        'instalación coplanar',
+        'instalación aporticada',
+        'instalación en estructura tipo pérgola',
+    ];
 
-        $modelosPlaca = [
-            'YINGLI 330',
-            'ELEK 270',
-            'PEIMAN 420W',
-            'MUNCHEN/ AS-6P-320W',
-            'LONGI 445W',
-            'LONGI 550W',
-            'LONGI 555W',
-            'LONGI 540W',
-            'LONGI 545W',
-            'LONGI 560W',
-            'LONGI 570W',
-            'LONGI 640W',
-            'RISEN 270W',
-            'RISEN 435W',
-            'RISEN 400W',
-            'RISEN 405W',
-            'RISEN 410W',
-            'RISEN 450W',
-            'RISEN 545W',
-            'RISEN 450W',
-        ];
+    // Modelos de placa que salen en el <select>
+    $modelosPlaca = [
+        'YINGLI 330',
+        'ELEK 270',
+        'PEIMAN 420W',
+        'MUNCHEN/ AS-6P-320W',
+        'LONGI 445W',
+        'LONGI 550W',
+        'LONGI 555W',
+        'LONGI 540W',
+        'LONGI 545W',
+        'LONGI 560W',
+        'LONGI 570W',
+        'LONGI 640W',
+        'RISEN 270W',
+        'RISEN 435W',
+        'RISEN 400W',
+        'RISEN 405W',
+        'RISEN 410W',
+        'RISEN 450W',
+        'RISEN 545W',
+        'RISEN 450W',
+    ];
 
-        $validated = $request->validate([
-            'cliente_id'                => 'required|exists:clientes,id',
-            'fecha'                     => 'required|date',
-            'numero_registro'           => 'nullable|string|max:255',
-            'cups'                      => 'nullable|string|max:255',
-            'referencia_catastral'      => 'nullable|string|max:255',
-            'potencia_factura_luz'      => 'nullable|string|max:255',
-            'metros_cuadrados_vivienda' => 'nullable|string|max:255',
-            'potencia_pico'             => 'nullable|string|max:255',
+    $validated = $request->validate([
+        'cliente_id'                => 'required|exists:clientes,id',
+        'fecha'                     => 'required|date',
+        'numero_registro'           => 'nullable|string|max:255',
+        'cups'                      => 'nullable|string|max:255',
+        'referencia_catastral'      => 'nullable|string|max:255',
+        'potencia_factura_luz'      => 'nullable|string|max:255',
+        'metros_cuadrados_vivienda' => 'nullable|string|max:255',
+        // potencia_pico se recalcula, no viene del form
+        // 'potencia_pico'          => 'nullable|string|max:255',
 
-            'marca_inversor'            => 'required|string|in:' . implode(',', $marcasInversor),
-            'modelo_inversor'           => 'nullable|string|max:255',
-            'potencia_inversores'       => 'nullable|string|max:255',
+        'marca_inversor'            => 'required|string|in:' . implode(',', $marcasInversor),
+        'modelo_inversor'           => 'nullable|string|max:255',
+        'potencia_inversores'       => 'nullable|string|max:255',
 
-            'tipo_instalacion_electrica'=> 'required|string|in:' . implode(',', $tiposInstalacionElectrica),
-            'tension_suministro'        => 'required|string|in:' . implode(',', $tensionesSuministro),
-            'tipo_instalacion'          => 'required|string|in:' . implode(',', $tiposInstalacion),
+        'tipo_instalacion_electrica'=> 'required|string|in:' . implode(',', $tiposInstalacionElectrica),
+        'tension_suministro'        => 'required|string|in:' . implode(',', $tensionesSuministro),
+        'tipo_instalacion'          => 'required|string|in:' . implode(',', $tiposInstalacion),
 
-            'tipos_cubierta'            => 'nullable|array',
-            'tipos_cubierta.*'          => 'string|in:' . implode(',', $tiposCubierta),
+        'tipos_cubierta'            => 'nullable|array',
+        'tipos_cubierta.*'          => 'string|in:' . implode(',', $tiposCubierta),
 
-            'tiene_bateria'             => 'nullable|boolean',
-            'potencia_bateria'          => 'nullable|string|max:255',
-            'numero_baterias'           => 'nullable|integer|min:0',
+        'tiene_bateria'             => 'nullable|boolean',
+        'potencia_bateria'          => 'nullable|string|max:255',
+        'numero_baterias'           => 'nullable|integer|min:0',
 
-            'modelo_placa'              => 'required|array|min:1',
-            'modelo_placa.*'            => 'required|string|in:' . implode(',', $modelosPlaca),
-            'potencia_placa'            => 'required|array|min:1',
-            'potencia_placa.*'          => 'required|string|max:255',
-            'cantidad_placas'           => 'required|array|min:1',
-            'cantidad_placas.*'         => 'required|integer|min:1',
-        ]);
+        // modelos de placa desde <select>
+        'modelo_placa'              => 'required|array|min:1',
+        'modelo_placa.*'            => 'required|string|in:' . implode(',', $modelosPlaca),
 
-        $validated['tiene_bateria'] = $request->boolean('tiene_bateria');
-        $validated['tipos_cubierta'] = $request->input('tipos_cubierta', []);
+        // ya no usamos potencia_placa desde el form
+        // 'potencia_placa'         => 'required|array|min:1',
+        // 'potencia_placa.*'       => 'required|string|max:255',
 
-        $boletin->update([
-            'cliente_id'                => $validated['cliente_id'],
-            'fecha'                     => $validated['fecha'],
-            'numero_registro'           => $validated['numero_registro'] ?? null,
-            'cups'                      => $validated['cups'] ?? null,
-            'referencia_catastral'      => $validated['referencia_catastral'] ?? null,
-            'potencia_factura_luz'      => $validated['potencia_factura_luz'] ?? null,
-            'metros_cuadrados_vivienda' => $validated['metros_cuadrados_vivienda'] ?? null,
-            'potencia_pico'             => $validated['potencia_pico'] ?? null,
+        'cantidad_placas'           => 'required|array|min:1',
+        'cantidad_placas.*'         => 'required|integer|min:1',
+    ]);
 
-            'marca_inversor'            => $validated['marca_inversor'],
-            'modelo_inversor'           => $validated['modelo_inversor'] ?? null,
-            'potencia_inversores'       => $validated['potencia_inversores'] ?? null,
+    $validated['tiene_bateria']  = $request->boolean('tiene_bateria');
+    $validated['tipos_cubierta'] = $request->input('tipos_cubierta', []);
 
-            'tipo_instalacion_electrica'=> $validated['tipo_instalacion_electrica'],
-            'tension_suministro'        => $validated['tension_suministro'],
-            'tipo_instalacion'          => $validated['tipo_instalacion'],
+    /*
+     * CALCULAR POTENCIA PICO:
+     * potencia_pico = SUM( watts(modelo_placa) * cantidad_placas )
+     * Ej: "LONGI 640W" → 640
+     */
+    $modelos   = $validated['modelo_placa'];
+    $cantidades = $validated['cantidad_placas'];
 
-            'tipos_cubierta'            => $validated['tipos_cubierta'] ?? [],
+    $potenciaPicoTotal = 0;
 
-            'tiene_bateria'             => $validated['tiene_bateria'],
-            'potencia_bateria'          => $validated['potencia_bateria'] ?? null,
-            'numero_baterias'           => $validated['numero_baterias'] ?? null,
-        ]);
-
-        $boletin->placas()->delete();
-
-        $modelosPlaca   = $validated['modelo_placa'];
-        $potenciasPlaca = $validated['potencia_placa'];
-        $cantidades     = $validated['cantidad_placas'];
-
-        foreach ($modelosPlaca as $index => $modelo) {
-            BoletinPlaca::create([
-                'boletin_id'     => $boletin->id,
-                'modelo_placa'   => $modelo,
-                'potencia_placa' => $potenciasPlaca[$index] ?? null,
-                'cantidad_placas'=> $cantidades[$index] ?? 0,
-            ]);
+    foreach ($modelos as $i => $modelo) {
+        $watts = 0;
+        if (preg_match('/(\d+(\.\d+)?)/', $modelo, $m)) {
+            $watts = (float) $m[1];
         }
 
-        return redirect()
-            ->route('clientes.show', $boletin->cliente_id)
-            ->with('success', 'Boletín actualizado correctamente.');
+        $cantidad = (int) ($cantidades[$i] ?? 0);
+
+        if ($watts > 0 && $cantidad > 0) {
+            $potenciaPicoTotal += $watts * $cantidad;
+        }
     }
+
+    $validated['potencia_pico'] = $potenciaPicoTotal;
+
+    // Actualizar boletín
+    $boletin->update([
+        'cliente_id'                => $validated['cliente_id'],
+        'fecha'                     => $validated['fecha'],
+        'numero_registro'           => $validated['numero_registro'] ?? null,
+        'cups'                      => $validated['cups'] ?? null,
+        'referencia_catastral'      => $validated['referencia_catastral'] ?? null,
+        'potencia_factura_luz'      => $validated['potencia_factura_luz'] ?? null,
+        'metros_cuadrados_vivienda' => $validated['metros_cuadrados_vivienda'] ?? null,
+        'potencia_pico'             => $validated['potencia_pico'],
+
+        'marca_inversor'            => $validated['marca_inversor'],
+        'modelo_inversor'           => $validated['modelo_inversor'] ?? null,
+        'potencia_inversores'       => $validated['potencia_inversores'] ?? null,
+
+        'tipo_instalacion_electrica'=> $validated['tipo_instalacion_electrica'],
+        'tension_suministro'        => $validated['tension_suministro'],
+        'tipo_instalacion'          => $validated['tipo_instalacion'],
+
+        'tipos_cubierta'            => $validated['tipos_cubierta'] ?? [],
+
+        'tiene_bateria'             => $validated['tiene_bateria'],
+        'potencia_bateria'          => $validated['potencia_bateria'] ?? null,
+        'numero_baterias'           => $validated['numero_baterias'] ?? null,
+    ]);
+
+    // Regenerar placas (borramos y volvemos a crear)
+    $boletin->placas()->delete();
+
+    $modelosPlacaForm = $validated['modelo_placa'];
+    $cantidadesForm   = $validated['cantidad_placas'];
+
+    foreach ($modelosPlacaForm as $index => $modelo) {
+        // Extraer watts del modelo: "LONGI 640W" → 640
+        $watts = 0;
+        if (preg_match('/(\d+(\.\d+)?)/', $modelo, $m)) {
+            $watts = (float) $m[1];
+        }
+
+        BoletinPlaca::create([
+            'boletin_id'      => $boletin->id,
+            'modelo_placa'    => $modelo,
+            'potencia_placa'  => $watts,
+            'cantidad_placas' => $cantidadesForm[$index] ?? 0,
+        ]);
+    }
+
+    return redirect()
+        ->route('clientes.show', $boletin->cliente_id)
+        ->with('success', 'Boletín actualizado correctamente.');
+}
+
 
     public function destroy(Boletin $boletin)
     {
@@ -417,32 +498,61 @@ class BoletinController extends Controller
             ->with('success', 'Boletín eliminado correctamente.');
     }
 
+
+    private function calcularPotenciaPrevistaKw(Boletin $boletin): ?float
+{
+    $raw = trim((string) $boletin->potencia_inversores);
+
+    if ($raw !== '') {
+        if (preg_match('/(\d+(?:[.,]\d+)?)/', $raw, $m)) {
+            $valor = (float) str_replace(',', '.', $m[1]);
+
+            if ($valor > 1000) {
+                return $valor / 1000.0;
+            }
+
+            return $valor;
+        }
+    }
+    $modelo = trim((string) $boletin->modelo_inversor);
+
+    if ($modelo !== '') {
+        if (preg_match('/(\d+(?:[.,]\d+)?)/', $modelo, $m)) {
+            $valor = (float) str_replace(',', '.', $m[1]);
+            return $valor; 
+        }
+    }
+    return null;
+}
+
+
     public function pdfOficial(Boletin $boletin)
 {
     $boletin->load('cliente', 'placas');
-
     $cliente = $boletin->cliente;
 
-    // 1) Nº de registro de instalación: SIEMPRE 25
-    $numeroRegistroInstalacion = 25;
+    // REGLA: Nº registro instalación (25 si null)
+    $numeroRegistro = $boletin->numero_registro ?? '25';
 
-    // 2) Si tensión = 400V → sección fase/neutro 4 / 4 / 4 / 4
-    $seccionFaseNeutro = null;
-    if ($boletin->tension_suministro === '400V') {
-        $seccionFaseNeutro = '4 / 4 / 4 / 4';
-    }
+    // REGLA: Sección conductores
+    $seccionConductores = $boletin->tension_suministro === '400V'
+        ? '4 / 4 / 4 / 4'
+        : '6 / 6 / 6';
 
-    // 3) Protecciones contra sobreintensidades: solo una
-    if ($boletin->tipo_instalacion_electrica === 'trifasica') {
-        $proteccionSobreintensidades = 'magnetotermico';
-    } else {
-        $proteccionSobreintensidades = 'fusibles';
-    }
+    // REGLA: Protección sobreintensidades
+    $proteccion = ($boletin->tipo_instalacion_electrica === 'trifasica')
+        ? 'magnetotermico'
+        : 'fusibles';
 
+    // Ruta plantilla
     $templatePath = storage_path('app/plantillas/BOLETIN.pdf');
 
-    $pdf = new Fpdi();
+    $pdf = new \setasign\Fpdi\Fpdi();
     $pageCount = $pdf->setSourceFile($templatePath);
+
+    // Ajustes base
+    $pdf->SetFont('Helvetica', '', 6);
+    $pdf->SetTextColor(0, 0, 0);
 
     for ($pageNo = 1; $pageNo <= $pageCount; $pageNo++) {
         $tplId = $pdf->importPage($pageNo);
@@ -451,130 +561,243 @@ class BoletinController extends Controller
         $pdf->AddPage($size['orientation'], [$size['width'], $size['height']]);
         $pdf->useTemplate($tplId);
 
-        $pdf->SetFont('Helvetica', '', 8);
-        $pdf->SetTextColor(0, 0, 0);
-        $pdf->SetFillColor(255, 255, 255); // para tapar texto viejo
-
         if ($pageNo === 1) {
 
-            // ---------- Nº REGISTRO INSTALACIÓN (25) ----------
-            $pdf->Rect(140, 20, 50, 6, 'F');   // tapa el antiguo
-            $pdf->SetXY(140, 20);
-            $pdf->Write(4, $numeroRegistroInstalacion);
+            /* ---------------------------------------------------------
+             *  BLOQUE 1: CABECERA - Nº REGISTRO INSTALACIÓN
+             * --------------------------------------------------------- */
+            // Coordenadas base estimadas (ajustables):
+            $pdf->SetXY(1, 12);
+            $pdf->Write(4, $numeroRegistro);
 
-            // ---------- DATOS DE CLIENTE ----------
+            /* ---------------------------------------------------------
+             *  BLOQUE 2: TITULAR / CLIENTE
+             * --------------------------------------------------------- */
+
+            // NOMBRE COMPLETO
             if ($cliente) {
+
                 $nombreCompleto = trim(
                     ($cliente->nombre ?? '') . ' ' .
                     ($cliente->primer_apellido ?? '') . ' ' .
                     ($cliente->segundo_apellido ?? '')
                 );
 
-                // Nombre
-                $pdf->Rect(30, 40, 100, 5, 'F');
-                $pdf->SetXY(30, 40);
-                $pdf->Write(4, $nombreCompleto);
+                $pdf->SetXY(50, 69.2);
+                $pdf->Write(1, $nombreCompleto);
 
                 // DNI/CIF
-                $pdf->Rect(140, 40, 40, 5, 'F');
-                $pdf->SetXY(140, 40);
-                $pdf->Write(4, $cliente->dni_cif ?? '');
+                $pdf->SetXY(130, 69.2);
+                $pdf->Write(1, $cliente->dni_cif ?? '');
 
                 // Dirección
-                $pdf->Rect(30, 46, 150, 5, 'F');
-                $pdf->SetXY(30, 46);
+                $pdf->SetXY(50, 72.2);
                 $pdf->Write(4, $cliente->direccion ?? '');
 
-                // Población + provincia
-                $pdf->Rect(30, 52, 150, 5, 'F');
-                $pdf->SetXY(30, 52);
-                $pdf->Write(4,
-                    trim(($cliente->poblacion ?? '') . ' - ' . ($cliente->provincia ?? ''))
-                );
+                // LOCALIDAD
+                $pdf->SetXY(50, 78.5);
+                $pdf->Write(1, $cliente->poblacion ?? '');
+
+                // PROVINCIA
+                $pdf->SetXY(93, 78.5);
+                $pdf->Write(1, $cliente->provincia ?? '');
+
+                // CORREO
+                $pdf->SetXY(110, 78);
+                $pdf->Write(1, $cliente->email ?? '');
+
+                // Telefono
+                $pdf->SetXY(149, 78);
+                $pdf->Write(1, $cliente->telefono ?? '');
+
+                // CÓDIGO POSTAL2
+                    $pdf->SetXY(132, 90.5);  
+                    $pdf->Write(1, $cliente->codigo_postal ?? '');
+
+                // CÓDIGO POSTAL1
+                    $pdf->SetXY(130, 73.8);  
+                    $pdf->Write(1, $cliente->codigo_postal ?? '');
+
+
+                // DATOS INSTALACION 
+                
+                $direccion = trim($cliente->direccion ?? '');
+
+                $calle  = '';
+                $numero = '';
+
+                // Partimos por la coma: "Calle Jurel, 4" → ["Calle Jurel", "4"]
+                $partes = array_map('trim', explode(',', $direccion));
+
+                if (count($partes) >= 2) {
+                    $calle  = $partes[0];        
+                    $numero = $partes[1];        
+                } else {
+                    // Si no hay coma, intentamos calle + número tipo "Calle Jurel 4"
+                    if (preg_match('/^(.*?)[\s]+(\d+.*)$/', $direccion, $m)) {
+                        $calle  = trim($m[1]);
+                        $numero = trim($m[2]);
+                    } else {
+                        $calle  = $direccion;
+                        $numero = '';
+                    }
+                }
+
+                // Emplazamiento = solo la calle
+                $pdf->SetXY(50, 86);      // coords del campo Emplazamiento
+                $pdf->Write(1, $calle);
+
+                // Número = solo el nº de la casa
+                $pdf->SetXY(108, 86);     // coords del campo Número (ajusta si hace falta)
+                $pdf->Write(1, $numero);
+
+
+                // POBLACION 2
+                $poblacion2 = $cliente->poblacion;
+                $pdf->SetXY(50, 90.5);
+                $pdf->Write(1, $poblacion2 ?? '');
+
+                // PROVINCIA 2
+                $provincia2 = $cliente->provincia;
+                $pdf->SetXY(103, 90.5);
+                $pdf->Write(1, $provincia2 ?? '');
+
+                //texto generadores de tipo de instalación !!
+                $tipo_instalacion_3 = 'c -generadores/convertidores';
+                $pdf->SetXY(50, 95);
+                $pdf->Write(1, $tipo_instalacion_3 ?? '');
+
+                   //texto generadores de tipo de instalación !!
+                $uso_destina = 'instalación fotovoltáica';
+                $pdf->SetXY(102, 95);
+                $pdf->Write(1, $uso_destina ?? '');
+
+                //superficie en metros cuadrados !!
+                $metros_cuadrados_vivienda = $boletin->metros_cuadrados_vivienda;
+                $pdf->SetXY(150, 95);
+                $pdf->Write(1, $metros_cuadrados_vivienda ?? '');
+
             }
 
-            // ---------- CUPS ----------
-            $pdf->Rect(30, 60, 80, 5, 'F');
-            $pdf->SetXY(30, 60);
-            $pdf->Write(4, $boletin->cups ?? '');
+            /* ---------------------------------------------------------
+             *  BLOQUE 3: DATOS INSTALACIÓN
+             * --------------------------------------------------------- */
 
-            // ---------- POTENCIA FACTURA LUZ ----------
-            $pdf->Rect(120, 60, 40, 5, 'F');
-            $pdf->SetXY(120, 60);
+            // CUPS
+            $pdf->SetXY(110, 98.5);
+            $pdf->Write(1, $boletin->cups ?? '');
+
+            // Tipo instalación eléctrica (mono / tri)
+            if ($boletin->tipo_instalacion_electrica === 'monofasica') {
+                $pdf->SetXY(64.4, 127.5);
+                $pdf->Write(4, 'X');
+            }
+            // /* ---------------------------------------------------------
+            //  *  BLOQUE 6: TIPO INSTALACIÓN (nueva / ampliación)
+            //  * --------------------------------------------------------- */
+            
+            if ($boletin->tipo_instalacion === 'nueva') {
+                $pdf->SetXY(61.3, 96.6);
+                $pdf->Write(4, 'X');
+             }
+            
+            if ($boletin->tipo_instalacion === 'ampliacion') {
+                $pdf->SetXY(90, 116);
+                $pdf->Write(4, 'X');
+             }
+
+
+            // Instalación-Potencia prevista
+            $pdf->SetXY(145, 78);
             $pdf->Write(4, $boletin->potencia_factura_luz ?? '');
 
-            // ---------- POTENCIA PICO ----------
-            $pdf->Rect(120, 66, 40, 5, 'F');
-            $pdf->SetXY(120, 66);
-            $pdf->Write(4, $boletin->potencia_pico ?? '');
+            $potenciaPrevistaKw = $this->calcularPotenciaPrevistaKw($boletin);
 
-            // ---------- INSTALACIÓN MONOFÁSICA / TRIFÁSICA ----------
-            // (mueve X/Y hasta que cuadre con tus casillas)
-            if ($boletin->tipo_instalacion_electrica === 'monofasica') {
-                $pdf->Rect(60, 75, 4, 4, 'F'); // casilla mono
-                $pdf->SetXY(60, 75);
-                $pdf->Write(4, 'X');
-            } elseif ($boletin->tipo_instalacion_electrica === 'trifasica') {
-                $pdf->Rect(90, 75, 4, 4, 'F'); // casilla tri
-                $pdf->SetXY(90, 75);
-                $pdf->Write(4, 'X');
-            }
-
-            // ---------- TENSIÓN SUMINISTRO 230 / 400 ----------
-            if ($boletin->tension_suministro === '230V') {
-                $pdf->Rect(60, 82, 4, 4, 'F'); // 230V
-                $pdf->SetXY(60, 82);
-                $pdf->Write(4, 'X');
-            } elseif ($boletin->tension_suministro === '400V') {
-                $pdf->Rect(90, 82, 4, 4, 'F'); // 400V
-                $pdf->SetXY(90, 82);
-                $pdf->Write(4, 'X');
-            }
-
-            // ---------- SECCIÓN FASE / NEUTRO (si 400V) ----------
-            if ($seccionFaseNeutro) {
-                $pdf->Rect(130, 82, 40, 5, 'F');
-                $pdf->SetXY(130, 82);
-                $pdf->Write(4, $seccionFaseNeutro);
-            }
-
-            // ---------- TIPO INSTALACIÓN NUEVA / AMPLIACIÓN ----------
-            if ($boletin->tipo_instalacion === 'nueva') {
-                $pdf->Rect(60, 90, 4, 4, 'F');
-                $pdf->SetXY(60, 90);
-                $pdf->Write(4, 'X');
-            } elseif ($boletin->tipo_instalacion === 'ampliacion') {
-                $pdf->Rect(90, 90, 4, 4, 'F');
-                $pdf->SetXY(90, 90);
-                $pdf->Write(4, 'X');
-            }
-
-            // ---------- PROTECCIONES SOBREINTENSIDADES ----------
-            // limpiamos las dos casillas y marcamos solo la correcta
-            $pdf->Rect(60, 100, 4, 4, 'F'); // magnetotérmico
-            $pdf->Rect(90, 100, 4, 4, 'F'); // fusibles
-
-            if ($proteccionSobreintensidades === 'magnetotermico') {
-                $pdf->SetXY(60, 100);
-                $pdf->Write(4, 'X');
-            } elseif ($proteccionSobreintensidades === 'fusibles') {
-                $pdf->SetXY(90, 100);
-                $pdf->Write(4, 'X');
-            }
-
-            // A partir de aquí puedes continuar añadiendo más campos (inversor, baterías, placas...)
+        if (!is_null($potenciaPrevistaKw)) {
+            $textoPotenciaPrevista = number_format($potenciaPrevistaKw, 2, ',', '.').' kW';
+            $pdf->SetXY(100, 116);
+            $pdf->Write(1, $textoPotenciaPrevista);
         }
 
-        // Página 2 la dejamos tal cual
+
+        // POTENCIA PREVISTA (kW)
+            $potPrev = $boletin->potencia_factura_luz;
+
+            if ($potPrev) {
+                $potenciaPrevistaKw = floatval(str_replace(',', '.', $potPrev));
+            } else {
+                $potenciaPrevistaKw = 3.45;
+            }
+
+            $potenciaPrevistaKw = round($potenciaPrevistaKw, 2);
+
+            $pdf->SetXY(130, 102);
+            $pdf->Write(1, $potenciaPrevistaKw . ' kW');
+
+
+            // // Potencia instalada (uso potencia pico)
+            // // $pdf->SetXY(145, 85);
+            // // $pdf->Write(4, $boletin->potencia_pico ?? '');
+
+            // /* ---------------------------------------------------------
+            //  *  BLOQUE 4: CASILLAS (X)
+            //  * --------------------------------------------------------- */
+
+            // if ($boletin->tipo_instalacion_electrica === 'trifasica') {
+            //     $pdf->SetXY(70, 127.5);
+            //     $pdf->Write(4, 'X');
+            // }
+
+            // // Tensión suministro 230 / 400
+            // if ($boletin->tension_suministro === '230V') {
+            //     $pdf->SetXY(50, 107);
+            //     $pdf->Write(4, 'X');
+            // }
+            // if ($boletin->tension_suministro === '400V') {
+            //     $pdf->SetXY(90, 107);
+            //     $pdf->Write(4, 'X');
+            // }
+
+            // /* ---------------------------------------------------------
+            //  *  BLOQUE 5: SECCIÓN CONDUCTORES
+            //  * --------------------------------------------------------- */
+            // $pdf->SetXY(143, 10);
+            // $pdf->Write(4, $seccionConductores);
+
+            
+            // /* ---------------------------------------------------------
+            //  *  BLOQUE 7: PROTECCIÓN SOBRECARGAS
+            //  * --------------------------------------------------------- */
+            // if ($proteccion === 'magnetotermico') {
+            //     $pdf->SetXY(60, 132);
+            //     $pdf->Write(4, 'X');
+            // } else {
+            //     $pdf->SetXY(90, 132);
+            //     $pdf->Write(4, 'X');
+            // }
+
+            // /* ---------------------------------------------------------
+            //  *  BLOQUE 8: INVERSORES y BATERÍAS
+            //  * --------------------------------------------------------- */
+            // $pdf->SetXY(32, 150);
+            // $pdf->Write(4, $boletin->marca_inversor ?? '');
+
+            // $pdf->SetXY(90, 150);
+            // $pdf->Write(4, $boletin->modelo_inversor ?? '');
+
+            // // Baterías
+            // if ($boletin->tiene_bateria) {
+            //     $pdf->SetXY(32, 158);
+            //     $pdf->Write(4, 'Sí (' . ($boletin->numero_baterias ?? 1) . ')');
+            // } else {
+            //     $pdf->SetXY(32, 158);
+            //     $pdf->Write(4, 'No');
+            // }
+        }
     }
 
-    return response($pdf->Output('S'), 200, [
-        'Content-Type'        => 'application/pdf',
-        'Content-Disposition' => 'attachment; filename="boletin_'.$boletin->id.'_oficial.pdf"',
-    ]);
+    return $pdf->Output('I', 'BoletinOficial.pdf');
 }
-
-
 
 
 }

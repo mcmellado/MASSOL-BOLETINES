@@ -26,6 +26,7 @@
                             <th>Email</th>
                             <th>Teléfono</th>
                             <th>Provincia</th>
+                            <th>Código Postal</th>
                             <th class="text-end">Acciones</th>
                         </tr>
                     </thead>
@@ -39,6 +40,7 @@
                                 <td>{{ $cliente->email }}</td>
                                 <td>{{ $cliente->telefono }}</td>
                                 <td>{{ $cliente->provincia }}</td>
+                                <td>{{ $cliente->codigo_postal }}</td>
 
                                 <td class="text-end">
                                     <a href="{{ route('clientes.show', $cliente) }}" class="btn btn-sm btn-info">
@@ -61,7 +63,7 @@
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="7" class="text-center py-3">
+                                <td colspan="8" class="text-center py-3">
                                     No hay clientes registrados aún.
                                 </td>
                             </tr>

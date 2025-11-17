@@ -31,6 +31,9 @@ class ClienteController extends Controller
             'direccion'        => 'required|string|max:255',
             'poblacion'        => 'required|string|max:255',
             'provincia'        => 'required|string|max:255',
+
+            // 👉 NUEVO
+            'codigo_postal'    => 'required|string|max:20',
         ]);
 
         $cliente = Cliente::create($validated);
@@ -66,6 +69,7 @@ class ClienteController extends Controller
             'direccion'        => 'required|string|max:255',
             'poblacion'        => 'required|string|max:255',
             'provincia'        => 'required|string|max:255',
+            'codigo_postal'    => 'required|string|max:20',
         ]);
 
         $cliente->update($validated);

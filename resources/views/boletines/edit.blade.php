@@ -3,7 +3,7 @@
 @section('content')
 <div class="container mt-4">
 
-    <h2>Nuevo Cliente</h2>
+    <h2>Editar Boletín</h2>
 
     @if ($errors->any())
         <div class="alert alert-danger">
@@ -19,9 +19,12 @@
     <div class="card shadow-sm mt-3">
         <div class="card-body">
 
-            <form action="{{ route('clientes.store') }}" method="POST">
+            <form action="{{ route('boletines.update', $boletin) }}" method="POST">
                 @csrf
-                @include('clientes._form', ['cliente' => null])
+                @method('PUT')
+
+                {{-- Aquí usamos el formulario de BOLETINES, no el de clientes --}}
+                @include('boletines._form', ['boletin' => $boletin])
 
             </form>
 

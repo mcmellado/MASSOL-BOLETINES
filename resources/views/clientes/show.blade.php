@@ -41,40 +41,51 @@
         </div>
         <div class="card-body">
 
-            <div class="row mb-2">
-                <div class="col-md-4">
-                    <strong>Nombre:</strong><br>
-                    {{ $cliente->nombre }} {{ $cliente->primer_apellido }} {{ $cliente->segundo_apellido }}
-                </div>
-                <div class="col-md-4">
-                    <strong>DNI/CIF:</strong><br>
-                    {{ $cliente->dni_cif }}
-                </div>
-                <div class="col-md-4">
-                    <strong>Email:</strong><br>
-                    {{ $cliente->email }}
-                </div>
-            </div>
-
-            <div class="row mb-2">
-                <div class="col-md-4">
-                    <strong>Teléfono:</strong><br>
-                    {{ $cliente->telefono }}
-                </div>
-                <div class="col-md-4">
-                    <strong>Población:</strong><br>
-                    {{ $cliente->poblacion }}
-                </div>
-                <div class="col-md-4">
-                    <strong>Provincia:</strong><br>
-                    {{ $cliente->provincia }}
-                </div>
-            </div>
-
             <div class="row">
-                <div class="col-md-12">
-                    <strong>Dirección:</strong><br>
-                    {{ $cliente->direccion }}
+                {{-- Columna izquierda --}}
+                <div class="col-md-6 mb-3">
+                    <p class="mb-2">
+                        <strong>Nombre:</strong><br>
+                        {{ $cliente->nombre }} {{ $cliente->primer_apellido }} {{ $cliente->segundo_apellido }}
+                    </p>
+
+                    <p class="mb-2">
+                        <strong>DNI/CIF:</strong><br>
+                        {{ $cliente->dni_cif }}
+                    </p>
+
+                    <p class="mb-2">
+                        <strong>Teléfono:</strong><br>
+                        {{ $cliente->telefono }}
+                    </p>
+                </div>
+
+                {{-- Columna derecha --}}
+                <div class="col-md-6 mb-3">
+                    <p class="mb-2">
+                        <strong>Email:</strong><br>
+                        {{ $cliente->email }}
+                    </p>
+
+                    <p class="mb-2">
+                        <strong>Dirección:</strong><br>
+                        {{ $cliente->direccion }}
+                    </p>
+
+                    <p class="mb-2">
+                        <strong>Población:</strong><br>
+                        {{ $cliente->poblacion }}
+                    </p>
+
+                    <p class="mb-2">
+                        <strong>Provincia:</strong><br>
+                        {{ $cliente->provincia }}
+                    </p>
+
+                    <p class="mb-0">
+                        <strong>Código Postal:</strong><br>
+                        {{ $cliente->codigo_postal }}
+                    </p>
                 </div>
             </div>
 

@@ -21,6 +21,7 @@ class Cliente extends Model
         'direccion',
         'poblacion',
         'provincia',
+        'codigo_postal', 
     ];
 
     public function boletines()
