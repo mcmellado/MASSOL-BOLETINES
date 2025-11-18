@@ -20,20 +20,17 @@ class Boletin extends Model
         'potencia_factura_luz',
         'metros_cuadrados_vivienda',
         'potencia_pico',
-
         'marca_inversor',
         'modelo_inversor',
         'potencia_inversores',
-
         'tipo_instalacion_electrica',
         'tension_suministro',
         'tipo_instalacion',
-
         'tipos_cubierta',
-
         'tiene_bateria',
         'potencia_bateria',
         'numero_baterias',
+        'proteccion_sobretension'
     ];
 
     protected $casts = [

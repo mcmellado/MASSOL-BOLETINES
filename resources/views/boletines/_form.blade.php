@@ -19,6 +19,12 @@
         $boletin->tiene_bateria ?? false
     );
 
+    // Proteccion contra sobreintensidades
+     $proteccionSobretensionSeleccionada = old(
+        'proteccion_sobretension',
+        $boletin->proteccion_sobretension ?? null
+    );
+
     // Variables IMPORTANTES del bloque placas
     $oldModelosPlaca    = old('modelo_placa', []);
     $oldCantidadesPlaca = old('cantidad_placas', []);
@@ -279,6 +285,48 @@
 </div>
 
 <hr>
+<hr>
+
+{{-- ----------------------------------------------------
+     PROTECCIONES CONTRA SOBREINTENSIDADES
+----------------------------------------------------- --}}
+<div class="mb-3">
+    <label class="form-label d-block">Protecciones contra sobreintensidades</label>
+
+    <div class="form-check form-check-inline">
+        <input
+            class="form-check-input"
+            type="radio"
+            name="proteccion_sobretension"
+            id="proteccion_interruptor"
+            value="interruptor_automatico"
+            {{ $proteccionSobretensionSeleccionada === 'interruptor_automatico' ? 'checked' : '' }}
+        >
+        <label class="form-check-label" for="proteccion_interruptor">
+            Interruptor automático de protección<br>
+            contra sobrecargas y cortocircuitos
+        </label>
+    </div>
+
+    <div class="form-check form-check-inline">
+        <input
+            class="form-check-input"
+            type="radio"
+            name="proteccion_sobretension"
+            id="proteccion_fusibles"
+            value="fusibles_calibrados"
+            {{ $proteccionSobretensionSeleccionada === 'fusibles_calibrados' ? 'checked' : '' }}
+        >
+        <label class="form-check-label" for="proteccion_fusibles">
+            Fusibles calibrados de protección<br>
+            contra sobrecargas y cortocircuitos
+        </label>
+    </div>
+
+    @error('proteccion_sobretension')
+        <div class="text-danger small mt-1">{{ $message }}</div>
+    @enderror
+</div>
 
 
 

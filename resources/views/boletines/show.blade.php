@@ -120,6 +120,29 @@
             </div>
         </div>
     </div>
+        {{-- Protecciones contra sobreintensidades --}}
+    <div class="card shadow-sm mb-4">
+        <div class="card-header bg-danger text-white">
+            Protecciones contra sobreintensidades
+        </div>
+        <div class="card-body">
+            @php
+                $textoProteccion = match ($boletin->proteccion_sobretension) {
+                    'interruptor_automatico' => 'Interruptor automático de protección contra sobrecargas y cortocircuitos',
+                    'fusibles_calibrados'    => 'Fusibles calibrados de protección contra sobrecargas y cortocircuitos',
+                    default                  => null,
+                };
+            @endphp
+
+            @if($textoProteccion)
+                <p class="mb-0">
+                    {{ $textoProteccion }}
+                </p>
+            @else
+                <em>No se ha especificado protección contra sobreintensidades.</em>
+            @endif
+        </div>
+    </div>
 
     {{-- Inversores --}}
     <div class="card shadow-sm mb-4">

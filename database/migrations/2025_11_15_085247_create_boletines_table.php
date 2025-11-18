@@ -23,7 +23,6 @@ return new class extends Migration
 
             $table->string('metros_cuadrados_vivienda')->nullable();
 
-            // 👉 Potencia pico TOTAL de la instalación (suma placas = potencia_placa * cantidad)
             $table->decimal('potencia_pico', 10, 2)->nullable();
 
             $table->string('marca_inversor');
@@ -39,6 +38,11 @@ return new class extends Migration
             $table->boolean('tiene_bateria')->default(false);
             $table->string('potencia_bateria')->nullable();
             $table->integer('numero_baterias')->nullable();
+            $table->enum('proteccion_sobretension', [
+                'interruptor_automatico',
+                'fusibles_calibrados'
+            ])->nullable();
+
 
             $table->timestamps();
         });
