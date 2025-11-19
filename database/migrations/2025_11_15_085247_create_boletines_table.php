@@ -29,6 +29,9 @@ return new class extends Migration
             $table->string('modelo_inversor')->nullable();
             $table->string('potencia_inversores')->nullable();
 
+            // NUEVO CAMPO
+            $table->integer('numero_inversores')->nullable();
+
             $table->string('tipo_instalacion_electrica');
             $table->string('tension_suministro');
             $table->string('tipo_instalacion');
@@ -42,7 +45,6 @@ return new class extends Migration
                 'interruptor_automatico',
                 'fusibles_calibrados'
             ])->nullable();
-
 
             $table->timestamps();
         });

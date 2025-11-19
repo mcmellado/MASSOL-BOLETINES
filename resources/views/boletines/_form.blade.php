@@ -195,6 +195,19 @@
     </div>
 </div>
 
+<div class="col-md-4">
+    <label for="numero_inversores" class="form-label">Número de inversores</label>
+    <input type="number"
+           name="numero_inversores"
+           id="numero_inversores"
+           class="form-control @error('numero_inversores') is-invalid @enderror"
+           value="{{ old('numero_inversores', $boletin->numero_inversores ?? '') }}">
+    @error('numero_inversores')
+        <div class="invalid-feedback">{{ $message }}</div>
+    @enderror
+</div>
+
+
 <hr>
 
 

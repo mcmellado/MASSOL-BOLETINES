@@ -9,7 +9,7 @@ use Illuminate\Http\Request;
 use Barryvdh\DomPDF\Facade\Pdf;
 use setasign\Fpdi\Fpdi;
 use Illuminate\Validation\Rule;
-use Carbon\Carbon; 
+use Carbon\Carbon;
 
 class BoletinController extends Controller
 {
@@ -171,6 +171,7 @@ class BoletinController extends Controller
                 'nullable',
                 'string', Rule::in(['interruptor_automatico', 'fusibles_calibrados']),
             ],
+            'numero_inversores'         => 'nullable|integer|min:0',
         ]);
 
         // Normalizamos algunos campos
@@ -223,6 +224,7 @@ class BoletinController extends Controller
             'potencia_bateria'          => $validated['potencia_bateria'] ?? null,
             'numero_baterias'           => $validated['numero_baterias'] ?? null,
             'proteccion_sobretension'   => $validated['proteccion_sobretension'] ?? null,
+            'numero_inversores'         => $validated['numero_inversores'] ?? null,
         ]);
 
         // Guardar placas
@@ -246,11 +248,14 @@ class BoletinController extends Controller
     }
 
     public function show(Boletin $boletin)
-    {
-        $boletin->load('cliente', 'placas');
+{
+    $boletin->load('cliente', 'placas');
 
-        return view('boletines.show', compact('boletin'));
-    }
+    $potenciaDerivacionKw = $this->calcularPotenciaDerivacionKw($boletin);
+
+    return view('boletines.show', compact('boletin', 'potenciaDerivacionKw'));
+}
+
 
     public function edit(Boletin $boletin)
     {
@@ -381,6 +386,7 @@ class BoletinController extends Controller
             'tiene_bateria'             => 'nullable|boolean',
             'potencia_bateria'          => 'nullable|string|max:255',
             'numero_baterias'           => 'nullable|integer|min:0',
+            'numero_inversores'         => 'nullable|integer|min:0',
 
             'modelo_placa'              => 'required|array|min:1',
             'modelo_placa.*'            => 'required|string|in:' . implode(',', $modelosPlaca),
@@ -392,6 +398,7 @@ class BoletinController extends Controller
                 'string',
                 Rule::in(['interruptor_automatico', 'fusibles_calibrados']),
             ],
+
         ]);
 
         $validated['tiene_bateria']  = $request->boolean('tiene_bateria');
@@ -428,6 +435,7 @@ class BoletinController extends Controller
             'marca_inversor'            => $validated['marca_inversor'],
             'modelo_inversor'           => $validated['modelo_inversor'] ?? null,
             'potencia_inversores'       => $validated['potencia_inversores'] ?? null,
+            'numero_inversores'         => $validated['numero_inversores'] ?? null,
 
             'tipo_instalacion_electrica'=> $validated['tipo_instalacion_electrica'],
             'tension_suministro'        => $validated['tension_suministro'],
@@ -505,273 +513,356 @@ class BoletinController extends Controller
         $boletin->load('cliente', 'placas');
         $cliente = $boletin->cliente;
 
-    // REGLA: Nº registro instalación (25 si null)
-    $numeroRegistro = $boletin->numero_registro ?? '25';
+        // --- VARIABLE FECHA DE HOY (Formato PDF) ---
+        $fechaHoy = date('d/m/Y');
+        // Si necesitas el formato con texto: date('d \d\e F \d\e Y')
+        // Para mes en español necesitarías usar Carbon + locale.
 
-    // REGLA: Sección conductores
-    $seccionConductores = $boletin->tension_suministro === '400V'
-        ? '4 / 4 / 4 / 4'
-        : '6 / 6 / 6';
+        // Nº de registro instalación (25 por defecto)
+        $numeroRegistro = $boletin->numero_registro ?: '25';
 
-    // REGLA: Protección sobreintensidades
-    $proteccion = ($boletin->tipo_instalacion_electrica === 'trifasica')
-        ? 'magnetotermico'
-        : 'fusibles';
+        // Sección conductores (por si la usas luego)
+        $seccionConductores = $boletin->tension_suministro === '400V'
+            ? '4      4       4  '
+            : '6      6       6  ';
 
-    // Ruta plantilla
-    $templatePath = storage_path('app/plantillas/BOLETIN.pdf');
+        // Protección sobreintensidades
+        $proteccion = ($boletin->tipo_instalacion_electrica === 'trifasica')
+            ? 'magnetotermico'
+            : 'fusibles';
+
+        // Cálculos de potencias para el boletín
+        $potInstKw = $this->calcularPotenciaInstalacionKw($boletin);   // placas (kW)
+        $potDiKw   = $this->calcularPotenciaDerivacionKw($boletin);    // inversor (kW)
+
+        // Plantilla PDF
+        $templatePath = storage_path('app/plantillas/BOLETIN.pdf');
 
         $pdf = new \setasign\Fpdi\Fpdi();
         $pageCount = $pdf->setSourceFile($templatePath);
 
-    // Ajustes base
-    $pdf->SetFont('Helvetica', '', 6);
-    $pdf->SetTextColor(0, 0, 0);
+        // Ajustes base
+        $pdf->SetFont('Helvetica', '', 6);
+        $pdf->SetTextColor(0, 0, 0);
 
-    for ($pageNo = 1; $pageNo <= $pageCount; $pageNo++) {
-        $tplId = $pdf->importPage($pageNo);
-        $size = $pdf->getTemplateSize($tplId);
+        // Pequeño helper para tildes/ñ
+        $enc = fn($txt) => iconv('UTF-8', 'ISO-8859-1//TRANSLIT', (string) $txt);
+
+        for ($pageNo = 1; $pageNo <= $pageCount; $pageNo++) {
+            $tplId = $pdf->importPage($pageNo);
+            $size  = $pdf->getTemplateSize($tplId);
 
             $pdf->AddPage($size['orientation'], [$size['width'], $size['height']]);
             $pdf->useTemplate($tplId);
 
             if ($pageNo === 1) {
 
-            /* ---------------------------------------------------------
-             *  BLOQUE 1: CABECERA - Nº REGISTRO INSTALACIÓN
-             * --------------------------------------------------------- */
-            // Coordenadas base estimadas (ajustables):
-            $pdf->SetXY(1, 12);
-            $pdf->Write(4, $numeroRegistro);
+                /* ---------------------------------------------------------
+                 * BLOQUE: FECHA DE HOY (Variable añadida)
+                 * --------------------------------------------------------- */
+                $pdf->SetXY(20, 10); // <--- Pon aquí tus coordenadas X, Y
+                $pdf->Write(1, $enc($fechaHoy));
 
-            /* ---------------------------------------------------------
-             *  BLOQUE 2: TITULAR / CLIENTE
-             * --------------------------------------------------------- */
+                /* ---------------------------------------------------------
+                 * BLOQUE 1: CABECERA - Nº REGISTRO INSTALACIÓN
+                 * --------------------------------------------------------- */
+                $pdf->SetXY(102, 44);
+                $pdf->Write(4, $enc($numeroRegistro));
 
-            // NOMBRE COMPLETO
-            if ($cliente) {
+                /* ---------------------------------------------------------
+                 * BLOQUE 2: TITULAR / CLIENTE
+                 * --------------------------------------------------------- */
+                if ($cliente) {
+                    // Nombre completo
+                    $nombreCompleto = trim(
+                        ($cliente->nombre ?? '') . ' ' .
+                        ($cliente->primer_apellido ?? '') . ' ' .
+                        ($cliente->segundo_apellido ?? '')
+                    );
 
-                $nombreCompleto = trim(
-                    ($cliente->nombre ?? '') . ' ' .
-                    ($cliente->primer_apellido ?? '') . ' ' .
-                    ($cliente->segundo_apellido ?? '')
-                );
+                    $pdf->SetXY(50, 69.2);
+                    $pdf->Write(1, $enc($nombreCompleto));
 
-                $pdf->SetXY(50, 69.2);
-                $pdf->Write(1, $nombreCompleto);
+                    // DNI/CIF
+                    $pdf->SetXY(130, 69.2);
+                    $pdf->Write(1, $enc($cliente->dni_cif ?? ''));
 
-                // DNI/CIF
-                $pdf->SetXY(130, 69.2);
-                $pdf->Write(1, $cliente->dni_cif ?? '');
+                    // Dirección (línea titular)
+                    $pdf->SetXY(50, 72.2);
+                    $pdf->Write(4, $enc($cliente->direccion ?? ''));
 
-                // Dirección
-                $pdf->SetXY(50, 72.2);
-                $pdf->Write(4, $cliente->direccion ?? '');
+                    // LOCALIDAD
+                    $pdf->SetXY(50, 78.5);
+                    $pdf->Write(1, $enc($cliente->provincia ?? ''));
 
-                // LOCALIDAD
-                $pdf->SetXY(50, 78.5);
-                $pdf->Write(1, $cliente->poblacion ?? '');
+                    // PROVINCIA
+                    $pdf->SetXY(93, 78.5);
+                    $pdf->Write(1, $enc($cliente->poblacion ?? ''));
 
-                // PROVINCIA
-                $pdf->SetXY(93, 78.5);
-                $pdf->Write(1, $cliente->provincia ?? '');
+                    // CORREO
+                    $pdf->SetXY(110, 78);
+                    $pdf->Write(1, $enc($cliente->email ?? ''));
 
-                // CORREO
-                $pdf->SetXY(110, 78);
-                $pdf->Write(1, $cliente->email ?? '');
+                    // Teléfono
+                    $pdf->SetXY(149, 78);
+                    $pdf->Write(1, $enc($cliente->telefono ?? ''));
 
-                // Telefono
-                $pdf->SetXY(149, 78);
-                $pdf->Write(1, $cliente->telefono ?? '');
+                    // Código postal (zona titular)
+                    $pdf->SetXY(130, 73.8);
+                    $pdf->Write(1, $enc($cliente->codigo_postal ?? ''));
 
-                // CÓDIGO POSTAL2
-                    $pdf->SetXY(132, 90.5);  
-                    $pdf->Write(1, $cliente->codigo_postal ?? '');
+                    // ------- DATOS DE LA INSTALACIÓN (bloque inferior) -------
 
-                // CÓDIGO POSTAL1
-                    $pdf->SetXY(130, 73.8);  
-                    $pdf->Write(1, $cliente->codigo_postal ?? '');
+                    // Código postal 2 (bloque instalación)
+                    $pdf->SetXY(132, 90.5);
+                    $pdf->Write(1, $enc($cliente->codigo_postal ?? ''));
 
+                    // Dirección → Emplazamiento (calle) + Número
+                    $direccion = trim($cliente->direccion ?? '');
+                    $calle     = '';
+                    $numero    = '';
 
-                // DATOS INSTALACION 
-                
-                $direccion = trim($cliente->direccion ?? '');
+                    $partes = array_map('trim', explode(',', $direccion));
 
-                $calle  = '';
-                $numero = '';
-
-                // Partimos por la coma: "Calle Jurel, 4" → ["Calle Jurel", "4"]
-                $partes = array_map('trim', explode(',', $direccion));
-
-                if (count($partes) >= 2) {
-                    $calle  = $partes[0];        
-                    $numero = $partes[1];        
-                } else {
-                    // Si no hay coma, intentamos calle + número tipo "Calle Jurel 4"
-                    if (preg_match('/^(.*?)[\s]+(\d+.*)$/', $direccion, $m)) {
-                        $calle  = trim($m[1]);
-                        $numero = trim($m[2]);
+                    if (count($partes) >= 2) {
+                        $calle  = $partes[0];
+                        $numero = $partes[1];
                     } else {
-                        $calle  = $direccion;
-                        $numero = '';
+                        // Intento "Calle Jurel 4"
+                        if (preg_match('/^(.*?)[\s]+(\d+.*)$/', $direccion, $m)) {
+                            $calle  = trim($m[1]);
+                            $numero = trim($m[2]);
+                        } else {
+                            $calle  = $direccion;
+                            $numero = '';
+                        }
                     }
+
+                    // tension_suministro
+                    $pdf->SetXY(95, 132);
+                    $pdf->Write(1, ($boletin->tension_suministro ?? ''));
+
+                    // seccion conductores
+                    $pdf->SetXY(147.9, 131.8);
+                    $pdf->Write(1, ($seccionConductores ?? ''));
+
+                    // Emplazamiento (solo calle)
+                    $pdf->SetXY(50, 86);
+                    $pdf->Write(1, $enc($calle));
+
+                    // Número
+                    $pdf->SetXY(108, 86);
+                    $pdf->Write(1, $enc($numero));
+
+                    // Población (bloque instalación)
+                    $pdf->SetXY(50, 90.5);
+                    $pdf->Write(1, $enc($cliente->provincia ?? ''));
+
+                    // Provincia (bloque instalación)
+                    $pdf->SetXY(103, 90.5);
+                    $pdf->Write(1, $enc($cliente->poblacion ?? ''));
+
+                    // Texto "c - generadores/convertidores"
+                    $tipo_instalacion_3 = 'c - generadores/convertidores';
+                    $pdf->SetXY(50, 95);
+                    $pdf->Write(1, $enc($tipo_instalacion_3));
+
+                    // Texto uso: "instalación fotovoltaica"
+                    $uso_destina = 'instalación fotovoltaica';
+                    $pdf->SetXY(102, 95);
+                    $pdf->Write(1, $enc($uso_destina));
+
+                    // Superficie (m² vivienda)
+                    $pdf->SetXY(150, 95);
+                    $pdf->Write(1, $enc($boletin->metros_cuadrados_vivienda ?? ''));
                 }
 
-                // Emplazamiento = solo la calle
-                $pdf->SetXY(50, 86);      // coords del campo Emplazamiento
-                $pdf->Write(1, $calle);
+                //año
+                $anioBoletin = $boletin->fecha
+                ? Carbon::parse($boletin->fecha)->format('y')
+                : '';
+                $pdf->SetXY(124, 45.2);
+                $pdf->Write(1, $enc($anioBoletin));
 
-                // Número = solo el nº de la casa
-                $pdf->SetXY(108, 86);     // coords del campo Número (ajusta si hace falta)
-                $pdf->Write(1, $numero);
 
 
-                // POBLACION 2
-                $poblacion2 = $cliente->poblacion;
-                $pdf->SetXY(50, 90.5);
-                $pdf->Write(1, $poblacion2 ?? '');
+                if ($boletin->proteccion_sobretension === 'interruptor_automatico') {
+                    $pdf->SetXY(127.5, 141.2);
+                    $pdf->Write(4, 'X');
+                }
 
-                // PROVINCIA 2
-                $provincia2 = $cliente->provincia;
-                $pdf->SetXY(103, 90.5);
-                $pdf->Write(1, $provincia2 ?? '');
-
-                //texto generadores de tipo de instalación !!
-                $tipo_instalacion_3 = 'c -generadores/convertidores';
-                $pdf->SetXY(50, 95);
-                $pdf->Write(1, $tipo_instalacion_3 ?? '');
-
-                   //texto generadores de tipo de instalación !!
-                $uso_destina = 'instalación fotovoltáica';
-                $pdf->SetXY(102, 95);
-                $pdf->Write(1, $uso_destina ?? '');
-
-                //superficie en metros cuadrados !!
-                $metros_cuadrados_vivienda = $boletin->metros_cuadrados_vivienda;
-                $pdf->SetXY(150, 95);
-                $pdf->Write(1, $metros_cuadrados_vivienda ?? '');
-
-            }
+                if ($boletin->proteccion_sobretension === 'fusibles_calibrados') {
+                    $pdf->SetXY(91.7, 141);
+                    $pdf->Write(4, 'X');
+                }
 
                 /* ---------------------------------------------------------
                  * BLOQUE 3: DATOS INSTALACIÓN
                  * --------------------------------------------------------- */
 
-            // CUPS
-            $pdf->SetXY(110, 98.5);
-            $pdf->Write(1, $boletin->cups ?? '');
+                // CUPS
+                $pdf->SetXY(110, 98.5);
+                $pdf->Write(1, $enc($boletin->cups ?? ''));
 
-            // Tipo instalación eléctrica (mono / tri)
-            if ($boletin->tipo_instalacion_electrica === 'monofasica') {
-                $pdf->SetXY(64.4, 127.5);
-                $pdf->Write(4, 'X');
+                // Tipo instalación: nueva / ampliación
+                if ($boletin->tipo_instalacion === 'nueva') {
+                    $pdf->SetXY(61.3, 96.6);
+                    $pdf->Write(4, 'X');
+                } elseif ($boletin->tipo_instalacion === 'ampliacion') {
+                    $pdf->SetXY(75.7, 96.6);
+                    $pdf->Write(4, 'X');
+                }
+
+                // Tipo instalación eléctrica (mono / tri)
+                if ($boletin->tipo_instalacion_electrica === 'monofasica') {
+                    $pdf->SetXY(64.4, 127.5);
+                    $pdf->Write(4, 'X');
+                } elseif ($boletin->tipo_instalacion_electrica === 'trifasica') {
+                    $pdf->SetXY(77.2, 127.5);
+                    $pdf->Write(4, 'X');
+                }
+
+
+
+                /* ---------------------------------------------------------
+                 * INSTALACIÓN – POTENCIA PREVISTA (kW) – desde potencia_pico
+                 * --------------------------------------------------------- */
+                if (!is_null($potInstKw)) {
+                    $textoInst = number_format($potInstKw, 2, ',', '.') . ' kW';
+
+                    // AJUSTA ESTAS COORDENADAS a la casilla exacta
+                    $pdf->SetXY(90, 116);       // <- mueve X/Y si hace falta
+                    $pdf->Write(1, $enc($textoInst));
+                }
+
+                /* ---------------------------------------------------------
+                 * DERIVACIÓN INDIVIDUAL – POTENCIA PREVISTA (kW) – inversor
+                 * --------------------------------------------------------- */
+                if (!is_null($potDiKw)) {
+                    $textoDi = number_format($potDiKw, 2, ',', '.') . ' kW';
+
+                    // AJUSTA ESTAS COORDENADAS a la casilla exacta
+                    $pdf->SetXY(90, 122);       // <- mueve X/Y si hace falta
+                    $pdf->Write(1, $enc($textoDi));
+                }
             }
-            // /* ---------------------------------------------------------
-            //  *  BLOQUE 6: TIPO INSTALACIÓN (nueva / ampliación)
-            //  * --------------------------------------------------------- */
-            
-            if ($boletin->tipo_instalacion === 'nueva') {
-                $pdf->SetXY(61.3, 96.6);
-                $pdf->Write(4, 'X');
-             }
-            
-            if ($boletin->tipo_instalacion === 'ampliacion') {
-                $pdf->SetXY(90, 116);
-                $pdf->Write(4, 'X');
-             }
-
-
-            // Instalación-Potencia prevista
-            $pdf->SetXY(145, 78);
-            $pdf->Write(4, $boletin->potencia_factura_luz ?? '');
-
-            $potenciaPrevistaKw = $this->calcularPotenciaPrevistaKw($boletin);
-
-        if (!is_null($potenciaPrevistaKw)) {
-            $textoPotenciaPrevista = number_format($potenciaPrevistaKw, 2, ',', '.').' kW';
-            $pdf->SetXY(100, 116);
-            $pdf->Write(1, $textoPotenciaPrevista);
         }
 
-
-        // POTENCIA PREVISTA (kW)
-            $potPrev = $boletin->potencia_factura_luz;
-
-            if ($potPrev) {
-                $potenciaPrevistaKw = floatval(str_replace(',', '.', $potPrev));
-            } else {
-                $potenciaPrevistaKw = 3.45;
-            }
-
-            $potenciaPrevistaKw = round($potenciaPrevistaKw, 2);
-
-            $pdf->SetXY(130, 102);
-            $pdf->Write(1, $potenciaPrevistaKw . ' kW');
-
-
-            // // Potencia instalada (uso potencia pico)
-            // // $pdf->SetXY(145, 85);
-            // // $pdf->Write(4, $boletin->potencia_pico ?? '');
-
-            // /* ---------------------------------------------------------
-            //  *  BLOQUE 4: CASILLAS (X)
-            //  * --------------------------------------------------------- */
-
-            // if ($boletin->tipo_instalacion_electrica === 'trifasica') {
-            //     $pdf->SetXY(70, 127.5);
-            //     $pdf->Write(4, 'X');
-            // }
-
-            // // Tensión suministro 230 / 400
-            // if ($boletin->tension_suministro === '230V') {
-            //     $pdf->SetXY(50, 107);
-            //     $pdf->Write(4, 'X');
-            // }
-            // if ($boletin->tension_suministro === '400V') {
-            //     $pdf->SetXY(90, 107);
-            //     $pdf->Write(4, 'X');
-            // }
-
-            // /* ---------------------------------------------------------
-            //  *  BLOQUE 5: SECCIÓN CONDUCTORES
-            //  * --------------------------------------------------------- */
-            // $pdf->SetXY(143, 10);
-            // $pdf->Write(4, $seccionConductores);
-
-            
-            // /* ---------------------------------------------------------
-            //  *  BLOQUE 7: PROTECCIÓN SOBRECARGAS
-            //  * --------------------------------------------------------- */
-            // if ($proteccion === 'magnetotermico') {
-            //     $pdf->SetXY(60, 132);
-            //     $pdf->Write(4, 'X');
-            // } else {
-            //     $pdf->SetXY(90, 132);
-            //     $pdf->Write(4, 'X');
-            // }
-
-            // /* ---------------------------------------------------------
-            //  *  BLOQUE 8: INVERSORES y BATERÍAS
-            //  * --------------------------------------------------------- */
-            // $pdf->SetXY(32, 150);
-            // $pdf->Write(4, $boletin->marca_inversor ?? '');
-
-            // $pdf->SetXY(90, 150);
-            // $pdf->Write(4, $boletin->modelo_inversor ?? '');
-
-            // // Baterías
-            // if ($boletin->tiene_bateria) {
-            //     $pdf->SetXY(32, 158);
-            //     $pdf->Write(4, 'Sí (' . ($boletin->numero_baterias ?? 1) . ')');
-            // } else {
-            //     $pdf->SetXY(32, 158);
-            //     $pdf->Write(4, 'No');
-            // }
-        }
+        return $pdf->Output('I', 'BoletinOficial.pdf');
     }
 
-    return $pdf->Output('I', 'BoletinOficial.pdf');
-}
+    /**
+     * Potencia prevista de la INSTALACIÓN (kW)
+     * Se usa la potencia pico de las placas (potencia_pico en Wp).
+     */
+    private function calcularPotenciaInstalacionKw(Boletin $boletin): ?float
+    {
+        if (empty($boletin->potencia_pico)) {
+            return null;
+        }
 
+        $picoWp = (float) str_replace(',', '.', (string) $boletin->potencia_pico);
 
+        if ($picoWp <= 0) {
+            return null;
+        }
+
+        // W → kW
+        $kw = $picoWp / 1000;
+
+        // Redondeo normal a 2 decimales (2,72 / 5,12 / 3,84...)
+        return round($kw, 2);
+    }
+
+    /**
+     * Potencia prevista de la DERIVACIÓN INDIVIDUAL (kW)
+     * Se usa la potencia del INVERSOR.
+     */
+    private function calcularPotenciaDerivacionKw(Boletin $boletin): ?float
+    {
+        // Nº de inversores (mínimo 1 por seguridad)
+        $numeroInversores = (int) ($boletin->numero_inversores ?? 1);
+        if ($numeroInversores < 1) {
+            $numeroInversores = 1;
+        }
+
+        // 1) Intentar con potencia_inversores ("6", "6,0", "6000"...)
+        $raw = trim((string) $boletin->potencia_inversores);
+
+        if ($raw !== '') {
+            if (preg_match('/(\d+(?:[.,]\d+)?)/', $raw, $m)) {
+                $valor = (float) str_replace(',', '.', $m[1]);
+
+                // Si viene en W (ej: 6000), lo pasamos a kW
+                if ($valor > 1000) {
+                    $valorKw = $valor / 1000;
+                } else {
+                    $valorKw = $valor; // ya está en kW
+                }
+
+                // Multiplicamos por el número de inversores
+                return round($valorKw * $numeroInversores, 2);
+            }
+        }
+
+        // 2) Si no hay nada claro, probar modelo inversor: "H1-6.0-E-G2"
+        $modelo = trim((string) $boletin->modelo_inversor);
+
+        if ($modelo !== '') {
+            if (preg_match('/(\d+(?:[.,]\d+)?)/', $modelo, $m)) {
+                $valor = (float) str_replace(',', '.', $m[1]);
+
+                // Aquí asumimos que el número ya viene en kW
+                return round($valor * $numeroInversores, 2);
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Devuelve la potencia en W de un modelo de placa (ej: "LONGI 640W" -> 640).
+     * Primero mira en un catálogo; si no lo encuentra, intenta sacar el último
+     * número del texto del modelo (suele ser la potencia nominal).
+     */
+    private function obtenerPotenciaWattsDesdeModelo(string $modelo): float
+    {
+        $modelo = trim($modelo);
+
+        // Catálogo explícito de potencias por modelo
+        $catalogoPotencias = [
+            'YINGLI 330'              => 330,
+            'ELEK 270'                => 270,
+            'PEIMAN 420W'             => 420,
+            'MUNCHEN/ AS-6P-320W'     => 320,
+            'LONGI 445W'              => 445,
+            'LONGI 550W'              => 550,
+            'LONGI 555W'              => 555,
+            'LONGI 540W'              => 540,
+            'LONGI 545W'              => 545,
+            'LONGI 560W'              => 560,
+            'LONGI 570W'              => 570,
+            'LONGI 640W'              => 640,
+            'RISEN 270W'              => 270,
+            'RISEN 435W'              => 435,
+            'RISEN 400W'              => 400,
+            'RISEN 405W'              => 405,
+            'RISEN 410W'              => 410,
+            'RISEN 450W'              => 450,
+            'RISEN 545W'              => 545,
+        ];
+
+        if (isset($catalogoPotencias[$modelo])) {
+            return (float) $catalogoPotencias[$modelo];
+        }
+
+        // Si no está en el catálogo, intento genérico:
+        // cojo el ÚLTIMO número del modelo (suele ser la potencia: 320 en "AS-6P-320W")
+        if (preg_match_all('/(\d+(?:[.,]\d+)?)/', $modelo, $matches)) {
+            $ultimoNumero = end($matches[1]);
+            return (float) str_replace(',', '.', $ultimoNumero);
+        }
+
+        return 0.0;
+    }
 }

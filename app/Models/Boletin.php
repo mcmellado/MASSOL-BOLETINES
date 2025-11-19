@@ -30,7 +30,8 @@ class Boletin extends Model
         'tiene_bateria',
         'potencia_bateria',
         'numero_baterias',
-        'proteccion_sobretension'
+        'proteccion_sobretension',
+        'numero_inversores'
     ];
 
     protected $casts = [
