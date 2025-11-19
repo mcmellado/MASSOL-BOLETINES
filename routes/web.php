@@ -19,3 +19,7 @@ Route::resource('boletines', BoletinController::class)->parameters([
 
 Route::get('boletines/{boletin}/oficial', [BoletinController::class, 'pdfOficial'])
     ->name('boletines.pdf.oficial');
+
+Route::get('/boletines/{boletin}/memoria-tecnica', [BoletinController::class, 'pdfMemoriaTecnica'])
+    ->name('boletines.pdf.memoria');
+

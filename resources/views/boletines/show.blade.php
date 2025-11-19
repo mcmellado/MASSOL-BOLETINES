@@ -40,6 +40,9 @@
                 <a href="{{ route('boletines.pdf.oficial', $boletin) }}" class="btn btn-sm btn-outline-dark mb-1">
                     PDF oficial
                 </a>
+                <a href="{{ route('boletines.pdf.memoria', $boletin) }}" class="btn btn-outline-warning">
+                    Descargar memoria técnica
+                </a>
             </form>
         </div>
     </div>

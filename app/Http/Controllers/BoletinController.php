@@ -865,4 +865,192 @@ class BoletinController extends Controller
 
         return 0.0;
     }
+
+
+    public function pdfMemoriaTecnica(Boletin $boletin)
+{
+    $boletin->load('cliente', 'placas');
+    $cliente = $boletin->cliente;
+
+    // Cálculos que ya tienes
+    $potInstKw = $this->calcularPotenciaInstalacionKw($boletin);   // placas (kW)
+    $potDiKw   = $this->calcularPotenciaDerivacionKw($boletin);    // inversor (kW)
+
+    // Ruta a la plantilla de memoria técnica
+    $templatePath = storage_path('app/plantillas/MemoriaTecnica.pdf');
+
+    $pdf = new \setasign\Fpdi\Fpdi();
+    $pageCount = $pdf->setSourceFile($templatePath);
+
+    $pdf->SetFont('Helvetica', '', 7);
+    $pdf->SetTextColor(0, 0, 0);
+
+    // Helper para acentos/ñ
+    $enc = fn($txt) => iconv('UTF-8', 'ISO-8859-1//TRANSLIT', (string) $txt);
+
+    for ($pageNo = 1; $pageNo <= $pageCount; $pageNo++) {
+        $tplId = $pdf->importPage($pageNo);
+        $size  = $pdf->getTemplateSize($tplId);
+
+        $pdf->AddPage($size['orientation'], [$size['width'], $size['height']]);
+        $pdf->useTemplate($tplId);
+
+        /* =========================
+         *   PÁGINA 1
+         *   Bloques A / B / C
+         * ========================= */
+        if ($pageNo === 1 && $cliente) {
+
+            // --- A) Titular ---
+            // Apellidos y nombre o razón social
+            $nombreCompleto = trim(
+                ($cliente->nombre ?? '') . ' ' .
+                ($cliente->primer_apellido ?? '') . ' ' .
+                ($cliente->segundo_apellido ?? '')
+            );
+            $pdf->SetXY(29, 57);       // ajusta X/Y según veas en tu PDF
+            $pdf->Write(3, $enc($nombreCompleto));
+
+             // DNI/CIF
+             $pdf->SetXY(132, 57);
+             $pdf->Write(3, $enc($cliente->dni_cif ?? ''));
+
+            // Domicilio (calle, avenida, plaza…)
+             $pdf->SetXY(28, 66.5);
+             $pdf->Write(3, $enc($cliente->direccion ?? ''));
+
+            //  CP
+            $pdf->SetXY(30, 75);
+            $pdf->Write(3, $enc($cliente->codigo_postal ?? ''));
+
+            // // Localidad
+            // $pdf->SetXY(50, 55);
+            // $pdf->Write(3, $enc($cliente->poblacion ?? ''));
+
+            // // Provincia
+            // $pdf->SetXY(95, 55);
+            // $pdf->Write(3, $enc($cliente->provincia ?? ''));
+
+            // // Teléfono
+            // $pdf->SetXY(140, 55);
+            // $pdf->Write(3, $enc($cliente->telefono ?? ''));
+
+            // // Correo electrónico
+            // $pdf->SetXY(140, 60);
+            // $pdf->Write(3, $enc($cliente->email ?? ''));
+
+
+            // --- B) Emplazamiento de la instalación ---
+            // Dirección (puedes reaprovechar la misma)
+        //     $pdf->SetXY(25, 75);
+        //     $pdf->Write(3, $enc($cliente->direccion ?? ''));
+
+        //     // C.P.
+        //     $pdf->SetXY(25, 80);
+        //     $pdf->Write(3, $enc($cliente->codigo_postal ?? ''));
+
+        //     // Localidad
+        //     $pdf->SetXY(50, 80);
+        //     $pdf->Write(3, $enc($cliente->poblacion ?? ''));
+
+        //     // Provincia
+        //     $pdf->SetXY(95, 80);
+        //     $pdf->Write(3, $enc($cliente->provincia ?? ''));
+
+        //     // Referencia catastral (usa la del boletín)
+        //     $pdf->SetXY(135, 80);
+        //     $pdf->Write(3, $enc($boletin->referencia_catastral ?? ''));
+
+        //     // Superficie útil (m² vivienda)
+        //     $pdf->SetXY(25, 88);
+        //     $pdf->Write(3, $enc($boletin->metros_cuadrados_vivienda ?? ''));
+
+        //     // Tipo de instalación (nueva / ampliación)
+        //     if ($boletin->tipo_instalacion === 'nueva') {
+        //         // marca la casilla de "Nueva"
+        //         $pdf->SetXY(55, 88);
+        //         $pdf->Write(3, 'X');
+        //     } elseif ($boletin->tipo_instalacion === 'ampliacion') {
+        //         // casilla "Ampliación"
+        //         $pdf->SetXY(70, 88);
+        //         $pdf->Write(3, 'X');
+        //     }
+
+        //     // Uso a que se destina: texto genérico
+        //     $pdf->SetXY(110, 88);
+        //     $pdf->Write(3, $enc('Generación fotovoltaica para autoconsumo'));
+        // }
+
+        // /* =========================
+        //  *   PÁGINA 2
+        //  *   Bloques E2.x (FV)
+        //  * ========================= */
+        // if ($pageNo === 2) {
+
+        //     // --- E2.2 Módulo fotovoltaico ---
+        //     // Marca/modelo: coge el primer modelo de placa si existe
+        //     $primeraPlaca = $boletin->placas->first();
+
+        //     if ($primeraPlaca) {
+        //         $pdf->SetXY(70, 50);   // Marca/modelo
+        //         $pdf->Write(3, $enc($primeraPlaca->modelo_placa));
+
+        //         // Potencia pico del módulo (Wp)
+        //         $pdf->SetXY(130, 50);
+        //         $pdf->Write(3, $enc($primeraPlaca->potencia_placa . ' W'));
+        //     }
+
+        //     // Tecnología de la célula: Monocristalino (por ejemplo)
+        //     $pdf->SetXY(30, 50);
+        //     $pdf->Write(3, $enc('Monocristalino'));
+
+        //     // --- E2.3 Generador fotovoltaico ---
+        //     // Potencia pico total (Wp)
+        //     $pdf->SetXY(25, 65);
+        //     $pdf->Write(3, $enc((string) $boletin->potencia_pico));
+
+        //     // Nº total de módulos (suma de cantidades)
+        //     $totalModulos = $boletin->placas->sum('cantidad_placas');
+        //     $pdf->SetXY(80, 71);
+        //     $pdf->Write(3, $enc((string) $totalModulos));
+
+        //     // Inclinación respecto a la horizontal (valor ejemplo o campo futuro)
+        //     $pdf->SetXY(25, 71);
+        //     $pdf->Write(3, $enc('30')); // si quieres fijo 30º
+
+        //     // Orientación del generador FV
+        //     $pdf->SetXY(135, 71);
+        //     $pdf->Write(3, $enc('Sur 0º'));
+
+
+        //     // --- E2.4 Inversores ---
+        //     // Nº de inversores
+        //     $pdf->SetXY(25, 86);
+        //     $pdf->Write(3, $enc((string) ($boletin->numero_inversores ?? 1)));
+
+        //     // Inversor 1: Marca / Modelo / Potencia AC aproximada
+        //     $pdf->SetXY(55, 90);   // Marca
+        //     $pdf->Write(3, $enc($boletin->marca_inversor ?? ''));
+
+        //     $pdf->SetXY(55, 94);   // Modelo
+        //     $pdf->Write(3, $enc($boletin->modelo_inversor ?? ''));
+
+        //     if (!is_null($potDiKw)) {
+        //         $pdf->SetXY(55, 98);   // Potencia AC, Pn (kW)
+        //         $pdf->Write(3, $enc(number_format($potDiKw, 2, ',', '.') . ' kW'));
+        //     }
+
+        //     // Aquí podrías rellenar más columnas (Inversor 2, Inversor 3…) si un día
+        //     // decides guardar inversores de forma separada.
+        }
+
+        /* =========================
+         *   PÁGINAS 3 y 4
+         *   (Protecciones, líneas, etc.)
+         * ========================= */
+    }
+
+    return $pdf->Output('I', 'MemoriaTecnica.pdf');
+}
+
 }
