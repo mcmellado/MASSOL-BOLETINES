@@ -535,7 +535,7 @@ public function store(Request $request)
         $pageCount = $pdf->setSourceFile($templatePath);
 
         // Ajustes base
-        $pdf->SetFont('Helvetica', '', 6);
+        $pdf->SetFont('Helvetica', '', 7);
         $pdf->SetTextColor(0, 0, 0);
 
         // Pequeño helper para tildes/ñ
@@ -928,7 +928,7 @@ private function obtenerPotenciaWattsDesdeModelo(string $modelo): float
     $pdf = new \setasign\Fpdi\Fpdi();
     $pageCount = $pdf->setSourceFile($templatePath);
 
-    $pdf->SetFont('Helvetica', '', 7);
+    $pdf->SetFont('Helvetica', '', 8.5);
     $pdf->SetTextColor(0, 0, 0);
 
     // Helper para acentos/ñ
@@ -961,66 +961,163 @@ private function obtenerPotenciaWattsDesdeModelo(string $modelo): float
              $pdf->SetXY(132, 57);
              $pdf->Write(3, $enc($cliente->dni_cif ?? ''));
 
-            // Domicilio (calle, avenida, plaza…)
-             $pdf->SetXY(28, 66.5);
-             $pdf->Write(3, $enc($cliente->direccion ?? ''));
+         
 
             //  CP
-            $pdf->SetXY(30, 75);
+            $pdf->SetXY(29.8, 75);
             $pdf->Write(3, $enc($cliente->codigo_postal ?? ''));
+            
 
             // Localidad
-            $pdf->SetXY(75, 75);
-            $pdf->Write(3, $enc($cliente->poblacion ?? ''));
+            $pdf->SetXY(73, 75.7);
+            $pdf->Write(1, $enc($cliente->poblacion ?? ''));
 
-            // Provincia
-            $pdf->SetXY(46.8, 75);
-            $pdf->Write(3, $enc($cliente->provincia ?? ''));
+             // Provincia
+            $provincia = $enc($cliente->provincia ?? '');
 
-            // // Teléfono
-            // $pdf->SetXY(140, 55);
-            // $pdf->Write(3, $enc($cliente->telefono ?? ''));
+           
+            $maxWidth = 40;        
+            $fontSize = 6;         
+            $minSize  = 3.5;      
 
-            // // Correo electrónico
-            // $pdf->SetXY(140, 60);
-            // $pdf->Write(3, $enc($cliente->email ?? ''));
+            // Asignamos fuente inicial
+            $pdf->SetFont('Helvetica', '', $fontSize);
+
+            // Reducir tamaño hasta que quepa
+            while ($pdf->GetStringWidth($provincia) > $maxWidth && $fontSize > $minSize) {
+                $fontSize -= 0.2;
+                $pdf->SetFont('Helvetica', '', $fontSize);
+            }
+
+            // Escribir texto
+            $pdf->SetXY(47, 75);
+            $pdf->Write(3, $provincia);
 
 
-            // --- B) Emplazamiento de la instalación ---
-            // Dirección (puedes reaprovechar la misma)
-        //     $pdf->SetXY(25, 75);
-        //     $pdf->Write(3, $enc($cliente->direccion ?? ''));
+            // Teléfono 
+            $pdf->SetFont('Helvetica', '', 8.5);  // ← Aumenta el tamaño aquí
+            $pdf->SetXY(103, 75);
+            $pdf->Write(3, $enc($cliente->telefono ?? ''));
 
-        //     // C.P.
-        //     $pdf->SetXY(25, 80);
-        //     $pdf->Write(3, $enc($cliente->codigo_postal ?? ''));
 
-        //     // Localidad
-        //     $pdf->SetXY(50, 80);
-        //     $pdf->Write(3, $enc($cliente->poblacion ?? ''));
+            // Correo electrónico
+            $pdf->SetFont('Helvetica', '', 8.5);
+            $pdf->SetXY(137, 75);
+            $pdf->Write(3, $enc($cliente->email ?? ''));
 
-        //     // Provincia
-        //     $pdf->SetXY(95, 80);
-        //     $pdf->Write(3, $enc($cliente->provincia ?? ''));
+            // Correo electrónico
+            $pdf->SetFont('Helvetica', '', 8.5);
+            $pdf->SetXY(137, 84.5);
+            $pdf->Write(3, $enc($cliente->dni_cif ?? ''));
 
-        //     // Referencia catastral (usa la del boletín)
-        //     $pdf->SetXY(135, 80);
-        //     $pdf->Write(3, $enc($boletin->referencia_catastral ?? ''));
+            //DOMICILIO 2
+            
+            // Dirección → Emplazamiento (calle) + Número
+                    $direccion = trim($cliente->direccion ?? '');
+                    $calle     = '';
+                    $numero    = '';
 
-        //     // Superficie útil (m² vivienda)
-        //     $pdf->SetXY(25, 88);
-        //     $pdf->Write(3, $enc($boletin->metros_cuadrados_vivienda ?? ''));
+                    $partes = array_map('trim', explode(',', $direccion));
 
-        //     // Tipo de instalación (nueva / ampliación)
-        //     if ($boletin->tipo_instalacion === 'nueva') {
-        //         // marca la casilla de "Nueva"
-        //         $pdf->SetXY(55, 88);
-        //         $pdf->Write(3, 'X');
-        //     } elseif ($boletin->tipo_instalacion === 'ampliacion') {
-        //         // casilla "Ampliación"
-        //         $pdf->SetXY(70, 88);
-        //         $pdf->Write(3, 'X');
-        //     }
+                    if (count($partes) >= 2) {
+                        $calle  = $partes[0];
+                        $numero = $partes[1];
+                    } else {
+                        // Intento "Calle Jurel 4"
+                        if (preg_match('/^(.*?)[\s]+(\d+.*)$/', $direccion, $m)) {
+                            $calle  = trim($m[1]);
+                            $numero = trim($m[2]);
+                        } else {
+                            $calle  = $direccion;
+                            $numero = '';
+                        }
+                    }
+
+                    $pdf->SetFont('Helvetica', '', 8.5);
+                    $pdf->SetXY(107.5, 100.5);
+                    $pdf->Write(1, $enc($numero));
+
+                    // Domicilio (calle, avenida, plaza…)
+                    $pdf->SetXY(28, 66.7);
+                    $pdf->Write(1, $enc($calle));
+
+                    // Domicilio 2 (calle, avenida, plaza…)
+                    $pdf->SetXY(28, 100.5);
+                    $pdf->Write(1, $enc($calle));
+                    
+
+             //  CP 2
+            $pdf->SetXY(29.8, 109);
+            $pdf->Write(3, $enc($cliente->codigo_postal ?? ''));
+            
+            $pdf->SetFont('Helvetica', '', $fontSize);
+
+            // Reducir tamaño hasta que quepa
+            while ($pdf->GetStringWidth($provincia) > $maxWidth && $fontSize > $minSize) {
+                $fontSize -= 0.2;
+                $pdf->SetFont('Helvetica', '', $fontSize);
+            }
+            // Localidad
+            $pdf->SetXY(47, 110.5);
+            $pdf->Write(1, $enc($cliente->provincia ?? ''));
+
+            $pdf->SetFont('Helvetica', '', 8.5);
+
+             // Localidad
+            $pdf->SetXY(73, 110.5);
+            $pdf->Write(1, $enc($cliente->poblacion ?? ''));
+
+
+             // Referencia catastral (usa la del boletín)
+                $pdf->SetXY(102, 109);
+                $pdf->Write(3, $enc($boletin->referencia_catastral ?? ''));
+            
+
+             // Tipo de instalación (nueva / ampliación)
+            if ($boletin->tipo_instalacion === 'nueva') {
+                // marca la casilla de "Nueva"
+                $pdf->SetXY(55, 100);
+                $pdf->Write(3, 'X');
+             } elseif ($boletin->tipo_instalacion === 'ampliacion') {
+                 // casilla "Ampliación"
+                 $pdf->SetXY(57.5, 137);
+                 $pdf->Write(3, 'X');
+             }
+
+
+            // Fecha del boletín (Carbon o string)
+            $fecha = $boletin->fecha ?? now();
+
+            // Convertimos en Carbon si no lo es
+            $fechaCarbon = \Carbon\Carbon::parse($fecha);
+
+            // Array de meses
+            $meses = [
+                1 => 'Enero',
+                2 => 'Febrero',
+                3 => 'Marzo',
+                4 => 'Abril',
+                5 => 'Mayo',
+                6 => 'Junio',
+                7 => 'Julio',
+                8 => 'Agosto',
+                9 => 'Septiembre',
+                10 => 'Octubre',
+                11 => 'Noviembre',
+                12 => 'Diciembre',
+            ];
+
+            // Texto completo
+            $textoFecha = "En Jerez a " .
+                $fechaCarbon->day .
+                " de " . $meses[$fechaCarbon->month] .
+                " del " . $fechaCarbon->year;
+
+            // Poner en PDF
+            $pdf->SetFont('Helvetica', '', 8);
+            $pdf->SetXY(20, 250);   // ← Ajustas posición
+            $pdf->Write(4, $textoFecha);
+
 
         //     // Uso a que se destina: texto genérico
         //     $pdf->SetXY(110, 88);
