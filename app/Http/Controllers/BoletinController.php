@@ -715,6 +715,29 @@ public function store(Request $request)
                     $pdf->Write(4, 'X');
                 }
 
+                // FECHA DEL BOLETÍN (año, mes, día)
+                $fechaCarbon = $boletin->fecha ? Carbon::parse($boletin->fecha)->locale('es') : null;
+                $diaBoletin  = $fechaCarbon ? $fechaCarbon->translatedFormat('d') : '';
+                $mesBoletin  = $fechaCarbon ? $fechaCarbon->translatedFormat('F') : '';  // ← nombre del mes en español
+                $anioBoletin = $fechaCarbon ? $fechaCarbon->translatedFormat('Y') : '';
+
+                // Si quieres también la fecha completa formateada:
+                $fechaCompleta = $boletin->fecha ? $boletin->fecha->format('d/m/Y') : '';
+
+                // DÍA
+                $pdf->SetXY(100, 193.3); 
+                $pdf->Write(1, $enc($diaBoletin));
+
+                // MES
+                $pdf->SetXY(115, 193.2); 
+                $pdf->Write(1, $enc($mesBoletin));
+
+                // AÑO
+                $pdf->SetXY(140, 193.2); 
+                $pdf->Write(1, $enc($anioBoletin));
+
+
+
 
 
                 /* ---------------------------------------------------------

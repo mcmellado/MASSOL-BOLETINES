@@ -1,9 +1,10 @@
 @extends('layouts.app')
 
 @section('content')
+
 <div class="container mt-4">
 
-    <h2>Editar Boletín</h2>
+    <h2 class="mb-3">Editar Boletín</h2>
 
     @if ($errors->any())
         <div class="alert alert-danger">
@@ -16,14 +17,18 @@
         </div>
     @endif
 
-    <div class="card shadow-sm mt-3">
+    <div class="card section-card card-lift mt-3">
+
+        <div class="card-header section-card-header">
+            <h5 class="mb-0 text-orange">Formulario de edición</h5>
+        </div>
+
         <div class="card-body">
 
             <form action="{{ route('boletines.update', $boletin) }}" method="POST">
                 @csrf
                 @method('PUT')
 
-                {{-- Aquí usamos el formulario de BOLETINES, no el de clientes --}}
                 @include('boletines._form', ['boletin' => $boletin])
 
             </form>
@@ -32,4 +37,5 @@
     </div>
 
 </div>
+
 @endsection

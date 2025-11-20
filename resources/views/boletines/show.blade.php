@@ -1,31 +1,133 @@
 @extends('layouts.app')
 
 @section('content')
-<div class="container mt-4">
+
+{{-- Estilos rápidos de la vista (puedes moverlos a tu CSS si quieres) --}}
+<style>
+    :root {
+        --orange-main: #fd7e14;
+        --orange-soft: #fff4e6;
+    }
+
+    .text-orange {
+        color: var(--orange-main) !important;
+    }
+    .bg-orange-soft {
+        background-color: var(--orange-soft) !important;
+    }
+    .btn-orange {
+        background-color: var(--orange-main);
+        border-color: var(--orange-main);
+        
+    }
+    .btn-orange:hover {
+        background-color: #f76707;
+        border-color: #f76707;
+        color: #fff;
+    }
+    .btn-outline-orange {
+        color: var(--orange-main);
+        border-color: var(--orange-main);
+    }
+    .btn-outline-orange:hover {
+        background-color: var(--orange-main);
+        border-color: var(--orange-main);
+        color: #fff;
+    }
+
+    .page-header-title {
+        font-size: 1.6rem;
+        font-weight: 600;
+    }
+
+    .section-card {
+        border-radius: .75rem;
+        border: 1px solid #edf2f7;
+    }
+
+    .section-card-header {
+        border-bottom: 1px solid #f1f3f5;
+        background-color: #fff;
+        border-bottom: 1px solid #ffe8cc !important;
+    }
+
+    .section-title {
+        font-weight: 600;
+        display: inline-flex;
+        align-items: center;
+        gap: .5rem;
+    }
+
+    .section-title::before {
+        content: "";
+        display: inline-block;
+        width: .35rem;
+        height: 1.4rem;
+        border-radius: 999px;
+        background-color: var(--orange-main);
+    }
+
+    .card-lift {
+        transition: transform .15s ease, box-shadow .15s ease;
+    }
+
+    .card-lift:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 .6rem 1.2rem rgba(15, 23, 42, 0.12);
+    }
+</style>
+
+<div class="container-xl py-4">
 
     @if(session('success'))
-        <div class="alert alert-success">{{ session('success') }}</div>
+        <div class="alert alert-success alert-dismissible fade show" role="alert">
+            {{ session('success') }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Cerrar"></button>
+        </div>
     @endif
 
-    {{-- CABECERA --}}
-    <div class="d-flex justify-content-between align-items-center mb-3">
-        <h2 class="mb-0">
-            Boletín #{{ $boletin->id }}
-        </h2>
+    {{-- CABECERA / ACCIONES --}}
+    <div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-center gap-3 mb-4">
+        <div>
+            <div class="d-flex flex-wrap align-items-center gap-2 mb-1">
+                <h1 class="page-header-title mb-0">
+                    Boletín #{{ $boletin->id }}
+                </h1>
 
-        <div class="text-end">
+                <span class="badge rounded-pill bg-orange-soft text-orange">
+                    Detalle de instalación fotovoltaica
+                </span>
+            </div>
+
+            <small class="text-muted">
+                Resumen del boletín, cliente asociado e información técnica de la instalación.
+            </small>
+        </div>
+
+        <div class="d-flex flex-wrap gap-2 justify-content-lg-end">
             @if($boletin->cliente)
-                <a href="{{ route('clientes.show', $boletin->cliente) }}" class="btn btn-sm btn-outline-secondary mb-1">
+                <a href="{{ route('clientes.show', $boletin->cliente) }}"
+                   class="btn btn-sm btn-outline-secondary">
                     Volver al cliente
                 </a>
             @endif
 
-            <a href="{{ route('boletines.index') }}" class="btn btn-sm btn-outline-secondary mb-1">
+            <a href="{{ route('boletines.index') }}" class="btn btn-sm btn-outline-secondary">
                 Listado boletines
             </a>
 
-            <a href="{{ route('boletines.edit', $boletin) }}" class="btn btn-sm btn-warning mb-1">
-                Editar
+            <a href="{{ route('boletines.edit', $boletin) }}" class="btn btn-sm btn-orange">
+                Editar boletín
+            </a>
+
+            <a href="{{ route('boletines.pdf.oficial', $boletin) }}"
+               class="btn btn-sm btn-outline-dark">
+                PDF oficial
+            </a>
+
+            <a href="{{ route('boletines.pdf.memoria', $boletin) }}"
+               class="btn btn-sm btn-outline-orange">
+                Memoria técnica
             </a>
 
             <form action="{{ route('boletines.destroy', $boletin) }}"
@@ -34,169 +136,198 @@
                   onsubmit="return confirm('¿Seguro que quieres eliminar este boletín?');">
                 @csrf
                 @method('DELETE')
-                <button class="btn btn-sm btn-danger mb-1">
+                <button class="btn btn-sm btn-outline-danger">
                     Eliminar
                 </button>
-                <a href="{{ route('boletines.pdf.oficial', $boletin) }}" class="btn btn-sm btn-outline-dark mb-1">
-                    PDF oficial
-                </a>
-                <a href="{{ route('boletines.pdf.memoria', $boletin) }}" class="btn btn-outline-warning">
-                    Descargar memoria técnica
-                </a>
             </form>
         </div>
     </div>
 
     {{-- CLIENTE --}}
-    <div class="card shadow-sm mb-4">
-        <div class="card-header" style="background-color:#ff922b; color:#fff;">
-            Cliente
+    <div class="card section-card card-lift mb-4">
+        <div class="card-header section-card-header">
+            <div class="d-flex justify-content-between align-items-center">
+                <div class="section-title">
+                    Cliente
+                </div>
+                @if($boletin->cliente)
+                    <span class="badge bg-orange-soft text-orange">
+                        ID cliente: {{ $boletin->cliente->id }}
+                    </span>
+                @endif
+            </div>
         </div>
         <div class="card-body">
             @if($boletin->cliente)
-                <div class="row">
+                <div class="row g-3">
                     <div class="col-md-6">
-                        <p class="mb-1">
-                            <strong>Nombre:</strong><br>
-                            {{ $boletin->cliente->nombre }}
-                            {{ $boletin->cliente->primer_apellido }}
-                            {{ $boletin->cliente->segundo_apellido }}
+                        <p class="mb-2">
+                            <span class="text-muted small d-block">Nombre completo</span>
+                            <span class="fw-semibold">
+                                {{ $boletin->cliente->nombre }}
+                                {{ $boletin->cliente->primer_apellido }}
+                                {{ $boletin->cliente->segundo_apellido }}
+                            </span>
                         </p>
-                        <p class="mb-1">
-                            <strong>DNI/CIF:</strong><br>
-                            {{ $boletin->cliente->dni_cif }}
+                        <p class="mb-0">
+                            <span class="text-muted small d-block">DNI / CIF</span>
+                            <span class="fw-semibold">
+                                {{ $boletin->cliente->dni_cif }}
+                            </span>
                         </p>
                     </div>
                     <div class="col-md-6">
-                        <p class="mb-1">
-                            <strong>Email:</strong><br>
-                            {{ $boletin->cliente->email }}
+                        <p class="mb-2">
+                            <span class="text-muted small d-block">Email</span>
+                            <span class="fw-semibold">
+                                {{ $boletin->cliente->email }}
+                            </span>
                         </p>
                         <p class="mb-0">
-                            <strong>Teléfono:</strong><br>
-                            {{ $boletin->cliente->telefono }}
+                            <span class="text-muted small d-block">Teléfono</span>
+                            <span class="fw-semibold">
+                                {{ $boletin->cliente->telefono }}
+                            </span>
                         </p>
                     </div>
                 </div>
             @else
-                <em>Este boletín no tiene cliente asociado.</em>
+                <em class="text-muted">Este boletín no tiene cliente asociado.</em>
             @endif
         </div>
     </div>
 
     {{-- FILA 1: DATOS GENERALES + INVERSORES --}}
-    <div class="row mb-4">
+    <div class="row g-3 mb-4">
         {{-- Datos generales --}}
-        <div class="col-md-6 mb-3 mb-md-0">
-            <div class="card shadow-sm h-100">
-                <div class="card-header" style="background-color:#ffe8cc; color:#d9480f;">
-                    Datos generales
+        <div class="col-lg-6">
+            <div class="card section-card card-lift h-100">
+                <div class="card-header section-card-header">
+                    <div class="section-title">
+                        Datos generales
+                    </div>
                 </div>
                 <div class="card-body">
-                    <div class="row mb-2">
+                    <div class="row g-3 mb-2">
                         <div class="col-6">
-                            <small class="text-muted">Fecha</small><br>
-                            {{ $boletin->fecha?->format('d/m/Y') ?? '—' }}
+                            <span class="text-muted small d-block">Fecha</span>
+                            <span class="fw-semibold">
+                                {{ $boletin->fecha?->format('d/m/Y') ?? '—' }}
+                            </span>
                         </div>
                         <div class="col-6">
-                            <small class="text-muted">Nº registro</small><br>
-                            {{ $boletin->numero_registro ?: '—' }}
+                            <span class="text-muted small d-block">Nº registro</span>
+                            <span class="fw-semibold">
+                                {{ $boletin->numero_registro ?: '—' }}
+                            </span>
                         </div>
                     </div>
 
-                    <div class="row mb-2">
+                    <div class="row g-3 mb-2">
                         <div class="col-6">
-                            <small class="text-muted">CUPS</small><br>
-                            {{ $boletin->cups ?: '—' }}
+                            <span class="text-muted small d-block">CUPS</span>
+                            <span class="fw-semibold">
+                                {{ $boletin->cups ?: '—' }}
+                            </span>
                         </div>
                         <div class="col-6">
-                            <small class="text-muted">Ref. catastral</small><br>
-                            {{ $boletin->referencia_catastral ?: '—' }}
+                            <span class="text-muted small d-block">Referencia catastral</span>
+                            <span class="fw-semibold">
+                                {{ $boletin->referencia_catastral ?: '—' }}
+                            </span>
                         </div>
                     </div>
 
-                    <div class="row mb-2">
+                    <div class="row g-3 mb-3">
                         <div class="col-6">
-                            <small class="text-muted">Potencia factura luz</small><br>
-                            {{ $boletin->potencia_factura_luz ?: '—' }}
+                            <span class="text-muted small d-block">Potencia en factura de luz</span>
+                            <span class="fw-semibold">
+                                {{ $boletin->potencia_factura_luz ?: '—' }}
+                            </span>
                         </div>
                         <div class="col-6">
-                            <small class="text-muted">m² vivienda</small><br>
-                            {{ $boletin->metros_cuadrados_vivienda ?: '—' }}
+                            <span class="text-muted small d-block">Superficie vivienda (m²)</span>
+                            <span class="fw-semibold">
+                                {{ $boletin->metros_cuadrados_vivienda ?: '—' }}
+                            </span>
                         </div>
                     </div>
 
-                    <div class="row mt-2">
-                        <div class="col-12">
-                            <small class="text-muted">Potencia pico FV</small><br>
-                            @php
-                                $picoKw = $boletin->potencia_pico
-                                    ? $boletin->potencia_pico / 1000
-                                    : null;
-                            @endphp
+                    <div class="pt-3 border-top">
+                        <span class="text-muted small d-block">Potencia pico FV</span>
+                        @php
+                            $picoKw = $boletin->potencia_pico
+                                ? $boletin->potencia_pico / 1000
+                                : null;
+                        @endphp
 
-                            @if($picoKw)
-                                <span class="fw-bold">
-                                    {{ number_format($picoKw, 2, ',', '.') }} kW
-                                </span>
-                            @else
-                                —
-                            @endif
-                        </div>
+                        @if($picoKw)
+                            <span class="fw-bold text-orange fs-5">
+                                {{ number_format($picoKw, 2, ',', '.') }} kW
+                            </span>
+                        @else
+                            <span class="text-muted">—</span>
+                        @endif
                     </div>
                 </div>
             </div>
         </div>
 
         {{-- Inversores --}}
-        <div class="col-md-6">
-            <div class="card shadow-sm h-100">
-                <div class="card-header d-flex justify-content-between align-items-center"
-                     style="background-color:#ff922b; color:#fff;">
-                    <span>Inversores</span>
-                    <span class="badge bg-light text-dark">
+        <div class="col-lg-6">
+            <div class="card section-card card-lift h-100">
+                <div class="card-header section-card-header d-flex justify-content-between align-items-center">
+                    <div class="section-title mb-0">
+                        Inversores
+                    </div>
+                    <span class="badge bg-orange-soft text-orange">
                         {{ $boletin->numero_inversores ?? 1 }}
                         inversor{{ ($boletin->numero_inversores ?? 1) > 1 ? 'es' : '' }}
                     </span>
                 </div>
                 <div class="card-body">
-                    <div class="row mb-2">
+                    <div class="row g-3 mb-2">
                         <div class="col-6">
-                            <small class="text-muted">Marca</small><br>
-                            {{ $boletin->marca_inversor ?: '—' }}
+                            <span class="text-muted small d-block">Marca</span>
+                            <span class="fw-semibold">
+                                {{ $boletin->marca_inversor ?: '—' }}
+                            </span>
                         </div>
                         <div class="col-6">
-                            <small class="text-muted">Modelo</small><br>
-                            {{ $boletin->modelo_inversor ?: '—' }}
+                            <span class="text-muted small d-block">Modelo</span>
+                            <span class="fw-semibold">
+                                {{ $boletin->modelo_inversor ?: '—' }}
+                            </span>
                         </div>
                     </div>
 
-                    <div class="row mb-2">
+                    <div class="row g-3 mb-3">
                         <div class="col-6">
-                            <small class="text-muted">Potencia (dato)</small><br>
-                            {{ $boletin->potencia_inversores ?: '—' }}
+                            <span class="text-muted small d-block">Potencia (dato)</span>
+                            <span class="fw-semibold">
+                                {{ $boletin->potencia_inversores ?: '—' }}
+                            </span>
                         </div>
                         <div class="col-6">
-                            <small class="text-muted">Nº inversores</small><br>
-                            {{ $boletin->numero_inversores ?? '—' }}
+                            <span class="text-muted small d-block">Nº inversores</span>
+                            <span class="fw-semibold">
+                                {{ $boletin->numero_inversores ?? '—' }}
+                            </span>
                         </div>
                     </div>
 
-                    <div class="row mt-2">
-                        <div class="col-12">
-                            <small class="text-muted">Potencia total inversores</small><br>
-                            @isset($potenciaDerivacionKw)
-                                <span class="fw-bold">
-                                    {{ number_format($potenciaDerivacionKw, 2, ',', '.') }} kW
-                                </span>
-                            @else
-                                <span class="text-muted">No calculada</span>
-                            @endisset
-                            <br>
-                            <small class="text-muted">
-                                Calculada usando potencia del inversor y número de inversores.
-                            </small>
-                        </div>
+                    <div class="pt-3 border-top">
+                        <span class="text-muted small d-block">Potencia total inversores</span>
+                        @isset($potenciaDerivacionKw)
+                            <span class="fw-bold text-orange fs-5">
+                                {{ number_format($potenciaDerivacionKw, 2, ',', '.') }} kW
+                            </span>
+                        @else
+                            <span class="text-muted">No calculada</span>
+                        @endisset
+                        <small class="text-muted d-block mt-1">
+                            Calculada usando potencia del inversor y número de inversores.
+                        </small>
                     </div>
                 </div>
             </div>
@@ -204,36 +335,44 @@
     </div>
 
     {{-- FILA 2: INSTALACIÓN + BATERÍAS / CUBIERTA / PROTECCIONES --}}
-    <div class="row mb-4">
-        {{-- Instalación + Protecciones --}}
-        <div class="col-md-6 mb-3 mb-md-0">
-            <div class="card shadow-sm mb-3">
-                <div class="card-header" style="background-color:#ffe8cc; color:#d9480f;">
-                    Instalación eléctrica
+    <div class="row g-3 mb-4">
+        {{-- Instalación eléctrica + Protecciones --}}
+        <div class="col-lg-6">
+            <div class="card section-card card-lift mb-3">
+                <div class="card-header section-card-header">
+                    <div class="section-title">
+                        Instalación eléctrica
+                    </div>
                 </div>
                 <div class="card-body">
-                    <div class="row mb-2">
-                        <div class="col-6">
-                            <small class="text-muted">Tipo instalación eléctrica</small><br>
-                            {{ ucfirst($boletin->tipo_instalacion_electrica) }}
+                    <div class="row g-3 mb-2">
+                        <div class="col-sm-6">
+                            <span class="text-muted small d-block">Tipo instalación eléctrica</span>
+                            <span class="fw-semibold">
+                                {{ ucfirst($boletin->tipo_instalacion_electrica) }}
+                            </span>
                         </div>
-                        <div class="col-6">
-                            <small class="text-muted">Tensión suministro</small><br>
-                            {{ $boletin->tension_suministro }}
+                        <div class="col-sm-6">
+                            <span class="text-muted small d-block">Tensión suministro</span>
+                            <span class="fw-semibold">
+                                {{ $boletin->tension_suministro }}
+                            </span>
                         </div>
                     </div>
-                    <div class="row">
-                        <div class="col-12">
-                            <small class="text-muted">Tipo instalación</small><br>
+                    <div>
+                        <span class="text-muted small d-block">Tipo instalación</span>
+                        <span class="fw-semibold">
                             {{ ucfirst($boletin->tipo_instalacion) }}
-                        </div>
+                        </span>
                     </div>
                 </div>
             </div>
 
-            <div class="card shadow-sm">
-                <div class="card-header" style="background-color:#ff6b6b; color:#fff;">
-                    Protecciones contra sobreintensidades
+            <div class="card section-card card-lift">
+                <div class="card-header section-card-header">
+                    <div class="section-title">
+                        Protecciones contra sobreintensidades
+                    </div>
                 </div>
                 <div class="card-body">
                     @php
@@ -247,40 +386,50 @@
                     @if($textoProteccion)
                         <p class="mb-0">{{ $textoProteccion }}</p>
                     @else
-                        <em>No se ha especificado protección contra sobreintensidades.</em>
+                        <em class="text-muted">No se ha especificado protección contra sobreintensidades.</em>
                     @endif
                 </div>
             </div>
         </div>
 
         {{-- Baterías + Tipo cubierta --}}
-        <div class="col-md-6">
-            <div class="card shadow-sm mb-3">
-                <div class="card-header" style="background-color:#51cf66; color:#fff;">
-                    Baterías
+        <div class="col-lg-6">
+            <div class="card section-card card-lift mb-3">
+                <div class="card-header section-card-header">
+                    <div class="section-title">
+                        Baterías
+                    </div>
                 </div>
                 <div class="card-body">
-                    <p class="mb-1">
-                        <small class="text-muted">¿Tiene batería?</small><br>
-                        {{ $boletin->tiene_bateria ? 'Sí' : 'No' }}
+                    <p class="mb-2">
+                        <span class="text-muted small d-block">¿Tiene batería?</span>
+                        <span class="fw-semibold">
+                            {{ $boletin->tiene_bateria ? 'Sí' : 'No' }}
+                        </span>
                     </p>
 
                     @if($boletin->tiene_bateria)
-                        <p class="mb-1">
-                            <small class="text-muted">Potencia batería</small><br>
-                            {{ $boletin->potencia_bateria }}
+                        <p class="mb-2">
+                            <span class="text-muted small d-block">Potencia batería</span>
+                            <span class="fw-semibold">
+                                {{ $boletin->potencia_bateria }}
+                            </span>
                         </p>
                         <p class="mb-0">
-                            <small class="text-muted">Nº baterías</small><br>
-                            {{ $boletin->numero_baterias }}
+                            <span class="text-muted small d-block">Nº baterías</span>
+                            <span class="fw-semibold">
+                                {{ $boletin->numero_baterias }}
+                            </span>
                         </p>
                     @endif
                 </div>
             </div>
 
-            <div class="card shadow-sm">
-                <div class="card-header" style="background-color:#ffe8cc; color:#d9480f;">
-                    Tipo de instalación en cubierta
+            <div class="card section-card card-lift">
+                <div class="card-header section-card-header">
+                    <div class="section-title">
+                        Tipo de instalación en cubierta
+                    </div>
                 </div>
                 <div class="card-body">
                     @php
@@ -294,7 +443,7 @@
                             @endforeach
                         </ul>
                     @else
-                        <em>No se ha especificado tipo de instalación en cubierta.</em>
+                        <em class="text-muted">No se ha especificado tipo de instalación en cubierta.</em>
                     @endif
                 </div>
             </div>
@@ -302,15 +451,22 @@
     </div>
 
     {{-- PLACAS SOLARES --}}
-    <div class="card shadow-sm mb-4">
-        <div class="card-header" style="background-color:#343a40; color:#fff;">
-            Placas solares
+    <div class="card section-card card-lift mb-4">
+        <div class="card-header section-card-header d-flex justify-content-between align-items-center">
+            <div class="section-title mb-0">
+                Placas solares
+            </div>
+            @if($boletin->placas && $boletin->placas->count())
+                <span class="badge bg-orange-soft text-orange">
+                    {{ $boletin->placas->sum('cantidad_placas') }} placas totales
+                </span>
+            @endif
         </div>
         <div class="card-body">
             @if($boletin->placas && $boletin->placas->count())
                 <div class="table-responsive">
-                    <table class="table table-sm table-striped table-hover mb-0">
-                        <thead>
+                    <table class="table table-sm table-striped table-hover align-middle mb-0">
+                        <thead class="table-light">
                             <tr>
                                 <th>Modelo</th>
                                 <th>Potencia (W)</th>
@@ -329,7 +485,7 @@
                     </table>
                 </div>
             @else
-                <em>No se han añadido placas a este boletín.</em>
+                <em class="text-muted">No se han añadido placas a este boletín.</em>
             @endif
         </div>
     </div>
