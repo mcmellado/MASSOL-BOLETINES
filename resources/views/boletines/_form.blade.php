@@ -19,15 +19,30 @@
         $boletin->tiene_bateria ?? false
     );
 
-    // Proteccion contra sobreintensidades
-     $proteccionSobretensionSeleccionada = old(
+    // Protección contra sobreintensidades
+    $proteccionSobretensionSeleccionada = old(
         'proteccion_sobretension',
         $boletin->proteccion_sobretension ?? null
     );
 
-    // Variables IMPORTANTES del bloque placas
+    // Variables para placas
     $oldModelosPlaca    = old('modelo_placa', []);
+    $oldNuevosPlaca     = old('modelo_placa_nuevo', []);
     $oldCantidadesPlaca = old('cantidad_placas', []);
+
+    // Marca inversor (select + nuevo)
+    $marcaInversorSeleccionada = old('marca_inversor', $boletin->marca_inversor ?? '');
+    $marcaInversorNuevoTexto = old(
+        'marca_inversor_nuevo',
+        (!empty($marcaInversorSeleccionada)
+            && !in_array($marcaInversorSeleccionada, $marcasInversor ?? [])
+            && $marcaInversorSeleccionada !== '__nuevo__')
+            ? $marcaInversorSeleccionada
+            : ''
+    );
+    $marcaInversorEsNuevo = $marcaInversorSeleccionada === '__nuevo__'
+        || (!empty($marcaInversorSeleccionada)
+            && !in_array($marcaInversorSeleccionada, $marcasInversor ?? []));
 @endphp
 
 
@@ -78,9 +93,8 @@
 </div>
 
 
-
 {{-- ----------------------------------------------------
-     FILA 2: CUPS, Catastral, Potencia Factura
+     FILA 2: CUPS, Catastral, Potencia
 ----------------------------------------------------- --}}
 <div class="row mb-3">
     <div class="col-md-4">
@@ -123,7 +137,7 @@
 
 
 {{-- ----------------------------------------------------
-     FILA 3: m2 vivienda + potencia pico (calculada)
+     FILA 3: m2 + potencia pico
 ----------------------------------------------------- --}}
 <div class="row mb-3">
     <div class="col-md-4">
@@ -138,9 +152,8 @@
         @enderror
     </div>
 
-    {{-- Solo visual, potencia pico la calculará el controlador --}}
     <div class="col-md-4">
-        <label class="form-label">Potencia pico (se calculará sola)</label>
+        <label class="form-label">Potencia pico (automática)</label>
         <input type="text" class="form-control" value="{{ $boletin->potencia_pico ?? '—' }}" disabled>
     </div>
 </div>
@@ -148,25 +161,37 @@
 <hr>
 
 
-
 {{-- ----------------------------------------------------
-     INVERSORES
+     INVERSORES (CON NUEVA MARCA)
 ----------------------------------------------------- --}}
 <div class="row mb-3">
     <div class="col-md-4">
         <label for="marca_inversor" class="form-label">Marca inversor</label>
         <select name="marca_inversor" id="marca_inversor"
-                class="form-select @error('marca_inversor') is-invalid @enderror">
+                class="form-select selector-marca-inversor @error('marca_inversor') is-invalid @enderror">
             <option value="">-- Selecciona marca --</option>
             @foreach($marcasInversor as $marca)
                 <option value="{{ $marca }}"
-                    {{ old('marca_inversor', $boletin->marca_inversor ?? '') === $marca ? 'selected' : '' }}>
+                    {{ $marcaInversorSeleccionada === $marca ? 'selected' : '' }}>
                     {{ $marca }}
                 </option>
             @endforeach
+            <option value="__nuevo__" {{ $marcaInversorEsNuevo ? 'selected' : '' }}>
+                Otra / nueva marca...
+            </option>
         </select>
+
+        <input type="text"
+               name="marca_inversor_nuevo"
+               class="form-control mt-2 campo-marca-inversor-nueva {{ $marcaInversorEsNuevo ? '' : 'd-none' }}"
+               value="{{ $marcaInversorNuevoTexto }}"
+               placeholder="Escribe la marca del inversor">
+
         @error('marca_inversor')
             <div class="invalid-feedback">{{ $message }}</div>
+        @enderror
+        @error('marca_inversor_nuevo')
+            <div class="text-danger small mt-1">{{ $message }}</div>
         @enderror
     </div>
 
@@ -207,9 +232,7 @@
     @enderror
 </div>
 
-
 <hr>
-
 
 
 {{-- ----------------------------------------------------
@@ -239,8 +262,8 @@
                 class="form-select @error('tension_suministro') is-invalid @enderror">
             <option value="">-- Selecciona tensión --</option>
             @foreach($tensionesSuministro as $tension)
-                <option value="{{ $tension }}"
-                    {{ old('tension_suministro', $boletin->tension_suministro ?? '') === $tension ? 'selected' : '' }}>
+                <option value="{{ $tension }}
+                    " {{ old('tension_suministro', $boletin->tension_suministro ?? '') === $tension ? 'selected' : '' }}>
                     {{ $tension }}
                 </option>
             @endforeach
@@ -271,7 +294,6 @@
 <hr>
 
 
-
 {{-- ----------------------------------------------------
      TIPO DE CUBIERTA
 ----------------------------------------------------- --}}
@@ -300,8 +322,9 @@
 <hr>
 <hr>
 
+
 {{-- ----------------------------------------------------
-     PROTECCIONES CONTRA SOBREINTENSIDADES
+     PROTECCIONES
 ----------------------------------------------------- --}}
 <div class="mb-3">
     <label class="form-label d-block">Protecciones contra sobreintensidades</label>
@@ -316,8 +339,7 @@
             {{ $proteccionSobretensionSeleccionada === 'interruptor_automatico' ? 'checked' : '' }}
         >
         <label class="form-check-label" for="proteccion_interruptor">
-            Interruptor automático de protección<br>
-            contra sobrecargas y cortocircuitos
+            Interruptor automático<br>contra sobrecargas
         </label>
     </div>
 
@@ -331,8 +353,7 @@
             {{ $proteccionSobretensionSeleccionada === 'fusibles_calibrados' ? 'checked' : '' }}
         >
         <label class="form-check-label" for="proteccion_fusibles">
-            Fusibles calibrados de protección<br>
-            contra sobrecargas y cortocircuitos
+            Fusibles calibrados
         </label>
     </div>
 
@@ -340,7 +361,6 @@
         <div class="text-danger small mt-1">{{ $message }}</div>
     @enderror
 </div>
-
 
 
 {{-- ----------------------------------------------------
@@ -387,33 +407,42 @@
 <hr>
 
 
-
 {{-- ----------------------------------------------------
-     PLACAS SOLARES (CORREGIDAS)
+     PLACAS SOLARES (CON NUEVO MODELO)
 ----------------------------------------------------- --}}
 <h5>Placas solares</h5>
 
 <div id="placas-container" class="mt-3">
 
-    {{-- Si vienen datos antiguos del formulario (por errores de validación) --}}
+    {{-- Caso OLD --}}
     @if(!empty($oldModelosPlaca))
         @foreach($oldModelosPlaca as $i => $modeloSeleccionado)
             <div class="row placa-item align-items-end mb-2">
 
-                {{-- Modelo de placa (select) --}}
                 <div class="col-md-6 mb-2">
                     <label class="form-label">Modelo de placa</label>
-                    <select name="modelo_placa[]" class="form-select">
+                    <select name="modelo_placa[]" class="form-select selector-modelo-placa">
                         <option value="">-- Selecciona modelo --</option>
+
                         @foreach($modelosPlaca as $m)
                             <option value="{{ $m }}" {{ $modeloSeleccionado === $m ? 'selected' : '' }}>
                                 {{ $m }}
                             </option>
                         @endforeach
+
+                        <option value="__nuevo__"
+                            {{ $modeloSeleccionado === '__nuevo__' ? 'selected' : '' }}>
+                            Otro / nuevo modelo...
+                        </option>
                     </select>
+
+                    <input type="text"
+                           name="modelo_placa_nuevo[]"
+                           class="form-control mt-2 campo-modelo-nuevo {{ $modeloSeleccionado === '__nuevo__' ? '' : 'd-none' }}"
+                           value="{{ $oldNuevosPlaca[$i] ?? '' }}"
+                           placeholder="Escribe el modelo">
                 </div>
 
-                {{-- Cantidad --}}
                 <div class="col-md-4 mb-2">
                     <label class="form-label">Cantidad</label>
                     <input type="number"
@@ -422,7 +451,6 @@
                            value="{{ $oldCantidadesPlaca[$i] ?? '' }}">
                 </div>
 
-                {{-- Botón eliminar --}}
                 <div class="col-md-2 mb-2 text-end">
                     <button type="button" class="btn btn-outline-danger btn-remove-placa">
                         Eliminar
@@ -432,25 +460,33 @@
             </div>
         @endforeach
 
-    {{-- Si el boletín ya tiene placas guardadas --}}
+
+    {{-- Caso PLACAS GUARDADAS --}}
     @elseif(isset($boletin) && $boletin->placas->count() > 0)
         @foreach($boletin->placas as $placa)
             <div class="row placa-item align-items-end mb-2">
 
-                {{-- Modelo de placa (select) --}}
                 <div class="col-md-6 mb-2">
                     <label class="form-label">Modelo de placa</label>
-                    <select name="modelo_placa[]" class="form-select">
+
+                    <select name="modelo_placa[]" class="form-select selector-modelo-placa">
                         <option value="">-- Selecciona modelo --</option>
+
                         @foreach($modelosPlaca as $m)
                             <option value="{{ $m }}" {{ $placa->modelo_placa === $m ? 'selected' : '' }}>
                                 {{ $m }}
                             </option>
                         @endforeach
+
+                        <option value="__nuevo__">Otro / nuevo modelo...</option>
                     </select>
+
+                    <input type="text"
+                           name="modelo_placa_nuevo[]"
+                           class="form-control mt-2 campo-modelo-nuevo d-none"
+                           placeholder="Escribe el modelo">
                 </div>
 
-                {{-- Cantidad --}}
                 <div class="col-md-4 mb-2">
                     <label class="form-label">Cantidad</label>
                     <input type="number"
@@ -459,7 +495,6 @@
                            value="{{ $placa->cantidad_placas }}">
                 </div>
 
-                {{-- Botón eliminar --}}
                 <div class="col-md-2 mb-2 text-end">
                     <button type="button" class="btn btn-outline-danger btn-remove-placa">
                         Eliminar
@@ -469,28 +504,32 @@
             </div>
         @endforeach
 
-    {{-- Si no hay placas aún --}}
+
+    {{-- Caso sin placas --}}
     @else
         <div class="row placa-item align-items-end mb-2">
 
-            {{-- Modelo de placa --}}
             <div class="col-md-6 mb-2">
                 <label class="form-label">Modelo de placa</label>
-                <select name="modelo_placa[]" class="form-select">
+                <select name="modelo_placa[]" class="form-select selector-modelo-placa">
                     <option value="">-- Selecciona modelo --</option>
                     @foreach($modelosPlaca as $m)
                         <option value="{{ $m }}">{{ $m }}</option>
                     @endforeach
+                    <option value="__nuevo__">Otro / nuevo modelo...</option>
                 </select>
+
+                <input type="text"
+                       name="modelo_placa_nuevo[]"
+                       class="form-control mt-2 campo-modelo-nuevo d-none"
+                       placeholder="Escribe el modelo">
             </div>
 
-            {{-- Cantidad --}}
             <div class="col-md-4 mb-2">
                 <label class="form-label">Cantidad</label>
                 <input type="number" name="cantidad_placas[]" class="form-control">
             </div>
 
-            {{-- Botón eliminar --}}
             <div class="col-md-2 mb-2 text-end">
                 <button type="button" class="btn btn-outline-danger btn-remove-placa">
                     Eliminar
@@ -506,17 +545,25 @@
     + Añadir placa
 </button>
 
+
+{{-- TEMPLATE --}}
 <template id="placa-template">
     <div class="row placa-item align-items-end mb-2">
 
         <div class="col-md-6 mb-2">
             <label class="form-label">Modelo de placa</label>
-            <select name="modelo_placa[]" class="form-select">
+            <select name="modelo_placa[]" class="form-select selector-modelo-placa">
                 <option value="">-- Selecciona modelo --</option>
                 @foreach($modelosPlaca as $m)
                     <option value="{{ $m }}">{{ $m }}</option>
                 @endforeach
+                <option value="__nuevo__">Otro / nuevo modelo...</option>
             </select>
+
+            <input type="text"
+                   name="modelo_placa_nuevo[]"
+                   class="form-control mt-2 campo-modelo-nuevo d-none"
+                   placeholder="Escribe el modelo">
         </div>
 
         <div class="col-md-4 mb-2">
@@ -534,19 +581,58 @@
 </template>
 
 
+{{-- ----------------------------------------------------
+     JS para dinámicos (placas + marca inversor)
+----------------------------------------------------- --}}
 <script>
     document.addEventListener('DOMContentLoaded', function () {
-        const btnAdd = document.getElementById('btn-add-placa');
+        const btnAdd    = document.getElementById('btn-add-placa');
         const container = document.getElementById('placas-container');
-        const template = document.getElementById('placa-template');
+        const template  = document.getElementById('placa-template');
 
+        // Añadir placa
         btnAdd.addEventListener('click', () => {
             container.appendChild(template.content.cloneNode(true));
         });
 
+        // Eliminar placa
         container.addEventListener('click', e => {
             if (e.target.classList.contains('btn-remove-placa')) {
                 e.target.closest('.placa-item').remove();
+            }
+        });
+
+        // Select dinámico de placas -> mostrar input si "__nuevo__"
+        container.addEventListener('change', e => {
+            if (e.target.classList.contains('selector-modelo-placa')) {
+                const select = e.target;
+                const wrapper = select.closest('.col-md-6');
+                const inputNuevo = wrapper.querySelector('.campo-modelo-nuevo');
+
+                if (select.value === '__nuevo__') {
+                    inputNuevo.classList.remove('d-none');
+                    inputNuevo.focus();
+                } else {
+                    inputNuevo.classList.add('d-none');
+                    inputNuevo.value = '';
+                }
+            }
+        });
+
+        // Select dinámico de marca de inversor
+        document.addEventListener('change', e => {
+            if (e.target.classList.contains('selector-marca-inversor')) {
+                const select = e.target;
+                const wrapper = select.closest('.col-md-4');
+                const inputNuevo = wrapper.querySelector('.campo-marca-inversor-nueva');
+
+                if (select.value === '__nuevo__') {
+                    inputNuevo.classList.remove('d-none');
+                    inputNuevo.focus();
+                } else {
+                    inputNuevo.classList.add('d-none');
+                    inputNuevo.value = '';
+                }
             }
         });
     });
