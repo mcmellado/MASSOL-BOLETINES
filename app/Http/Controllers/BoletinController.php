@@ -290,7 +290,7 @@ public function store(Request $request)
     ));
 }
 
-    
+
   public function update(Request $request, Boletin $boletin)
 {
     $tiposInstalacionElectrica = ['monofasica', 'trifasica'];
@@ -516,8 +516,8 @@ public function store(Request $request)
 
         // Sección conductores (por si la usas luego)
         $seccionConductores = $boletin->tension_suministro === '400V'
-            ? '4      4       4  '
-            : '6      6       6  ';
+            ? '4     4      4  '
+            : '6     6      6  ';
 
         // Protección sobreintensidades
         $proteccion = ($boletin->tipo_instalacion_electrica === 'trifasica')
@@ -567,11 +567,15 @@ public function store(Request $request)
                  * --------------------------------------------------------- */
                 if ($cliente) {
                     // Nombre completo
-                    $nombreCompleto = trim(
-                        ($cliente->nombre ?? '') . ' ' .
-                        ($cliente->primer_apellido ?? '') . ' ' .
-                        ($cliente->segundo_apellido ?? '')
-                    );
+                    // Nombre completo del cliente (ya lo tienes arriba)
+                $nombreCompleto = trim(
+                    ($cliente->nombre ?? '') . ' ' .
+                    ($cliente->primer_apellido ?? '') . ' ' .
+                    ($cliente->segundo_apellido ?? '')
+                );
+
+                $nombreEnc = $enc($nombreCompleto);
+
 
                     $pdf->SetXY(50, 69.2);
                     $pdf->Write(1, $enc($nombreCompleto));
@@ -586,22 +590,22 @@ public function store(Request $request)
 
                     // LOCALIDAD
                     $pdf->SetXY(50, 78.5);
-                    $pdf->Write(1, $enc($cliente->provincia ?? ''));
+                    $pdf->Write(1, $enc($cliente->poblacion ?? ''));
 
                     // PROVINCIA
                     $pdf->SetXY(93, 78.5);
-                    $pdf->Write(1, $enc($cliente->poblacion ?? ''));
+                    $pdf->Write(1, $enc($cliente->provincia ?? ''));
 
                     // CORREO
-                    $pdf->SetXY(110, 78);
+                    $pdf->SetXY(110, 78.5);
                     $pdf->Write(1, $enc($cliente->email ?? ''));
 
                     // Teléfono
-                    $pdf->SetXY(149, 78);
+                    $pdf->SetXY(148.5, 78.5);
                     $pdf->Write(1, $enc($cliente->telefono ?? ''));
 
                     // Código postal (zona titular)
-                    $pdf->SetXY(130, 73.8);
+                    $pdf->SetXY(130, 73.9);
                     $pdf->Write(1, $enc($cliente->codigo_postal ?? ''));
 
                     // ------- DATOS DE LA INSTALACIÓN (bloque inferior) -------
@@ -649,11 +653,11 @@ public function store(Request $request)
 
                     // Población (bloque instalación)
                     $pdf->SetXY(50, 90.5);
-                    $pdf->Write(1, $enc($cliente->provincia ?? ''));
+                    $pdf->Write(1, $enc($cliente->poblacion ?? ''));
 
                     // Provincia (bloque instalación)
                     $pdf->SetXY(103, 90.5);
-                    $pdf->Write(1, $enc($cliente->poblacion ?? ''));
+                    $pdf->Write(1, $enc($cliente->provincia ?? ''));
 
                     // Texto "c - generadores/convertidores"
                     $tipo_instalacion_3 = 'c - generadores/convertidores';
@@ -725,15 +729,15 @@ public function store(Request $request)
                 $fechaCompleta = $boletin->fecha ? $boletin->fecha->format('d/m/Y') : '';
 
                 // DÍA
-                $pdf->SetXY(100, 193.3); 
+                $pdf->SetXY(100, 193.3);
                 $pdf->Write(1, $enc($diaBoletin));
 
                 // MES
-                $pdf->SetXY(115, 193.2); 
+                $pdf->SetXY(115, 193.2);
                 $pdf->Write(1, $enc($mesBoletin));
 
                 // AÑO
-                $pdf->SetXY(140, 193.2); 
+                $pdf->SetXY(140, 193.2);
                 $pdf->Write(1, $enc($anioBoletin));
 
 
@@ -772,69 +776,73 @@ public function store(Request $request)
      * Se usa la potencia pico de las placas (potencia_pico en Wp).
      */
     private function calcularPotenciaInstalacionKw(Boletin $boletin): ?float
-    {
-        if (empty($boletin->potencia_pico)) {
-            return null;
-        }
-
-        $picoWp = (float) str_replace(',', '.', (string) $boletin->potencia_pico);
-
-        if ($picoWp <= 0) {
-            return null;
-        }
-
-        // W → kW
-        $kw = $picoWp / 1000;
-
-        // Redondeo normal a 2 decimales (2,72 / 5,12 / 3,84...)
-        return round($kw, 2);
+{
+    // Aseguramos que las placas estén cargadas
+    if (!$boletin->relationLoaded('placas')) {
+        $boletin->load('placas');
     }
+
+    $totalWatts = 0.0;
+
+    foreach ($boletin->placas as $placa) {
+        // Ajusta estos nombres de campos a tu modelo real:
+        $modeloFinal = trim((string) ($placa->modelo_placa ?? ''));
+        $cantidad    = (int) ($placa->cantidad_placas ?? 0);
+
+        if ($modeloFinal === '' || $cantidad <= 0) {
+            continue;
+        }
+
+        $watts = $this->obtenerPotenciaWattsDesdeModelo($modeloFinal);
+
+        // Sumamos potencia = W por placa * nº placas
+        $totalWatts += $watts * $cantidad;
+    }
+
+    if ($totalWatts <= 0) {
+        return null;
+    }
+
+    // W → kW
+    $kw = $totalWatts / 1000;
+
+    return round($kw, 2); // ej: 4.95
+}
+
+
 
     /**
      * Potencia prevista de la DERIVACIÓN INDIVIDUAL (kW)
      * Se usa la potencia del INVERSOR.
      */
     private function calcularPotenciaDerivacionKw(Boletin $boletin): ?float
-    {
-        // Nº de inversores (mínimo 1 por seguridad)
-        $numeroInversores = (int) ($boletin->numero_inversores ?? 1);
-        if ($numeroInversores < 1) {
-            $numeroInversores = 1;
-        }
-
-        // 1) Intentar con potencia_inversores ("6", "6,0", "6000"...)
-        $raw = trim((string) $boletin->potencia_inversores);
-
-        if ($raw !== '') {
-            if (preg_match('/(\d+(?:[.,]\d+)?)/', $raw, $m)) {
-                $valor = (float) str_replace(',', '.', $m[1]);
-
-                // Si viene en W (ej: 6000), lo pasamos a kW
-                if ($valor > 1000) {
-                    $valorKw = $valor / 1000;
-                } else {
-                    $valorKw = $valor; // ya está en kW
-                }
-
-                // Multiplicamos por el número de inversores
-                return round($valorKw * $numeroInversores, 2);
-            }
-        }
-
-        // 2) Si no hay nada claro, probar modelo inversor: "H1-6.0-E-G2"
-        $modelo = trim((string) $boletin->modelo_inversor);
-
-        if ($modelo !== '') {
-            if (preg_match('/(\d+(?:[.,]\d+)?)/', $modelo, $m)) {
-                $valor = (float) str_replace(',', '.', $m[1]);
-
-                // Aquí asumimos que el número ya viene en kW
-                return round($valor * $numeroInversores, 2);
-            }
-        }
-
-        return null;
+{
+    // Nº de inversores (mínimo 1 por seguridad)
+    $numeroInversores = (int) ($boletin->numero_inversores ?? 1);
+    if ($numeroInversores < 1) {
+        $numeroInversores = 1;
     }
+
+    $raw = trim((string) $boletin->potencia_inversores);
+
+    if ($raw !== '') {
+        if (preg_match('/(\d+(?:[.,]\d+)?)/', $raw, $m)) {
+
+            $valor = (float) str_replace(',', '.', $m[1]);
+
+            // Si viene en W (ej: 6000), lo pasamos a kW
+            if ($valor > 1000) {
+                $valorKw = $valor / 1000;
+            } else {
+                $valorKw = $valor; // ya está en kW
+            }
+
+            return round($valorKw * $numeroInversores, 2);
+        }
+    }
+
+    return null;
+}
 
 /**
  * Devuelve la potencia en W de un modelo de placa (ej: "LONGI 640W" -> 640).
@@ -910,17 +918,14 @@ private function obtenerPotenciaWattsDesdeModelo(string $modelo): float
 
     return 0.0;
 }
-
-
-
     public function pdfMemoriaTecnica(Boletin $boletin)
 {
     $boletin->load('cliente', 'placas');
     $cliente = $boletin->cliente;
 
-    // Cálculos que ya tienes
-    $potInstKw = $this->calcularPotenciaInstalacionKw($boletin);   // placas (kW)
-    $potDiKw   = $this->calcularPotenciaDerivacionKw($boletin);    // inversor (kW)
+    // Cálculos que ya tienes (por si los quieres usar más adelante)
+    $potInstKw = $this->calcularPotenciaInstalacionKw($boletin);
+    $potDiKw   = $this->calcularPotenciaDerivacionKw($boletin);
 
     // Ruta a la plantilla de memoria técnica
     $templatePath = storage_path('app/plantillas/MemoriaTecnica.pdf');
@@ -935,6 +940,8 @@ private function obtenerPotenciaWattsDesdeModelo(string $modelo): float
     $enc = fn($txt) => iconv('UTF-8', 'ISO-8859-1//TRANSLIT', (string) $txt);
 
     for ($pageNo = 1; $pageNo <= $pageCount; $pageNo++) {
+
+        // Importar cada página de la plantilla
         $tplId = $pdf->importPage($pageNo);
         $size  = $pdf->getTemplateSize($tplId);
 
@@ -943,257 +950,618 @@ private function obtenerPotenciaWattsDesdeModelo(string $modelo): float
 
         /* =========================
          *   PÁGINA 1
-         *   Bloques A / B / C
          * ========================= */
         if ($pageNo === 1 && $cliente) {
 
-            // --- A) Titular ---
-            // Apellidos y nombre o razón social
+            $numeroRegistro = $boletin->numero_registro ?? '';
+
+            $pdf->SetFont('Helvetica', '', 12);
+            $pdf->SetXY(120, 40);
+            $pdf->Write(3, $enc($numeroRegistro));
+
+            // Nombre completo del cliente
             $nombreCompleto = trim(
                 ($cliente->nombre ?? '') . ' ' .
                 ($cliente->primer_apellido ?? '') . ' ' .
                 ($cliente->segundo_apellido ?? '')
             );
-            $pdf->SetXY(29, 57);       // ajusta X/Y según veas en tu PDF
-            $pdf->Write(3, $enc($nombreCompleto));
 
-             // DNI/CIF
-             $pdf->SetXY(132, 57);
-             $pdf->Write(3, $enc($cliente->dni_cif ?? ''));
+            $nombreEnc = $enc($nombreCompleto);
 
-         
+            $x = 29;
+            $y = 57;
 
-            //  CP
-            $pdf->SetXY(29.8, 75);
-            $pdf->Write(3, $enc($cliente->codigo_postal ?? ''));
-            
+            $maxWidth = 80;
+            $fontSize = 9;
+            $minSize  = 4.8;
 
-            // Localidad
-            $pdf->SetXY(73, 75.7);
-            $pdf->Write(1, $enc($cliente->poblacion ?? ''));
-
-             // Provincia
-            $provincia = $enc($cliente->provincia ?? '');
-
-           
-            $maxWidth = 40;        
-            $fontSize = 6;         
-            $minSize  = 3.5;      
-
-            // Asignamos fuente inicial
             $pdf->SetFont('Helvetica', '', $fontSize);
 
-            // Reducir tamaño hasta que quepa
-            while ($pdf->GetStringWidth($provincia) > $maxWidth && $fontSize > $minSize) {
+            while ($pdf->GetStringWidth($nombreEnc) > $maxWidth && $fontSize > $minSize) {
                 $fontSize -= 0.2;
                 $pdf->SetFont('Helvetica', '', $fontSize);
             }
 
-            // Escribir texto
-            $pdf->SetXY(47, 75);
-            $pdf->Write(3, $provincia);
+            $pdf->SetXY($x, $y);
+            $pdf->Write(3, $nombreEnc);
 
+            // DNI/CIF
+            $pdf->SetFont('Helvetica', '', 8.5);
+            $pdf->SetXY(132, 57.5);
+            $pdf->Write(3, $enc($cliente->dni_cif ?? ''));
 
-            // Teléfono 
-            $pdf->SetFont('Helvetica', '', 8.5);  // ← Aumenta el tamaño aquí
+            // CP
+            $pdf->SetXY(29.8, 75);
+            $pdf->Write(3, $enc($cliente->codigo_postal ?? ''));
+
+            // Localidad (arriba)
+            $pdf->SetXY(73, 75.9);
+            $pdf->Write(1, $enc($cliente->provincia ?? ''));
+
+            // poblacion
+            $poblacion = $enc($cliente->poblacion ?? '');
+            $maxWidth = 40;
+            $fontSize = 6;
+            $minSize = 3.5;
+
+            $pdf->SetFont('Helvetica', '', $fontSize);
+            while ($pdf->GetStringWidth($poblacion) > $maxWidth && $fontSize > $minSize) {
+                $fontSize -= 0.2;
+                $pdf->SetFont('Helvetica', '', $fontSize);
+            }
+            $pdf->SetXY(47, 75.5);
+            $pdf->Write(3, $poblacion);
+
+            // Teléfono
+            $pdf->SetFont('Helvetica', '', 8.5);
             $pdf->SetXY(103, 75);
             $pdf->Write(3, $enc($cliente->telefono ?? ''));
 
-
-            // Correo electrónico
-            $pdf->SetFont('Helvetica', '', 8.5);
+            // Correo
             $pdf->SetXY(137, 75);
             $pdf->Write(3, $enc($cliente->email ?? ''));
 
-            // Correo electrónico
-            $pdf->SetFont('Helvetica', '', 8.5);
+            // DNI en otro campo
             $pdf->SetXY(137, 84.5);
             $pdf->Write(3, $enc($cliente->dni_cif ?? ''));
 
-            //DOMICILIO 2
-            
-            // Dirección → Emplazamiento (calle) + Número
-                    $direccion = trim($cliente->direccion ?? '');
-                    $calle     = '';
-                    $numero    = '';
+            // ----- Dirección desglosada -----
+            $direccion = trim($cliente->direccion ?? '');
+            $calle = '';
+            $numero = '';
 
-                    $partes = array_map('trim', explode(',', $direccion));
+            $partes = array_map('trim', explode(',', $direccion));
 
-                    if (count($partes) >= 2) {
-                        $calle  = $partes[0];
-                        $numero = $partes[1];
-                    } else {
-                        // Intento "Calle Jurel 4"
-                        if (preg_match('/^(.*?)[\s]+(\d+.*)$/', $direccion, $m)) {
-                            $calle  = trim($m[1]);
-                            $numero = trim($m[2]);
-                        } else {
-                            $calle  = $direccion;
-                            $numero = '';
-                        }
-                    }
+            if (count($partes) >= 2) {
+                $calle = $partes[0];
+                $numero = $partes[1];
+            } elseif (preg_match('/^(.*?)[\s]+(\d+.*)$/', $direccion, $m)) {
+                $calle = trim($m[1]);
+                $numero = trim($m[2]);
+            } else {
+                $calle = $direccion;
+                $numero = '';
+            }
 
-                    $pdf->SetFont('Helvetica', '', 8.5);
-                    $pdf->SetXY(107.5, 100.5);
-                    $pdf->Write(1, $enc($numero));
+            // Nº domicilio
+            $pdf->SetXY(107.5, 100.5);
+            $pdf->Write(1, $enc($numero));
 
-                    // Domicilio (calle, avenida, plaza…)
-                    $pdf->SetXY(28, 66.7);
-                    $pdf->Write(1, $enc($calle));
+            // Calle arriba
+            $pdf->SetXY(28, 66.7);
+            $pdf->Write(1, $enc($calle));
 
-                    // Domicilio 2 (calle, avenida, plaza…)
-                    $pdf->SetXY(28, 100.5);
-                    $pdf->Write(1, $enc($calle));
-                    
+            // Calle abajo
+            $pdf->SetXY(28, 100.5);
+            $pdf->Write(1, $enc($calle));
 
-             //  CP 2
+            // CP abajo
             $pdf->SetXY(29.8, 109);
             $pdf->Write(3, $enc($cliente->codigo_postal ?? ''));
-            
-            $pdf->SetFont('Helvetica', '', $fontSize);
 
-            // Reducir tamaño hasta que quepa
-            while ($pdf->GetStringWidth($provincia) > $maxWidth && $fontSize > $minSize) {
-                $fontSize -= 0.2;
-                $pdf->SetFont('Helvetica', '', $fontSize);
-            }
-            // Localidad
+            $provincia = $cliente->provincia;
+            // LOCALIDAD abajo
+            $pdf->SetFont('Helvetica', '', $fontSize);
             $pdf->SetXY(47, 110.5);
+            $pdf->Write(1, $poblacion);
+
+            // PROVINCIA abajo
+            $pdf->SetFont('Helvetica', '', 8.5);
+            $pdf->SetXY(73, 110.5);
             $pdf->Write(1, $enc($cliente->provincia ?? ''));
 
-            $pdf->SetFont('Helvetica', '', 8.5);
+            // Referencia catastral
+            $pdf->SetXY(102, 109);
+            $pdf->Write(3, $enc($boletin->referencia_catastral ?? ''));
 
-             // Localidad
-            $pdf->SetXY(73, 110.5);
-            $pdf->Write(1, $enc($cliente->poblacion ?? ''));
-
-
-             // Referencia catastral (usa la del boletín)
-                $pdf->SetXY(102, 109);
-                $pdf->Write(3, $enc($boletin->referencia_catastral ?? ''));
-            
-
-             // Tipo de instalación (nueva / ampliación)
+            // Tipo instalación
             if ($boletin->tipo_instalacion === 'nueva') {
-                // marca la casilla de "Nueva"
-                $pdf->SetXY(55, 100);
+                $pdf->SetXY(57.5, 133.2);
                 $pdf->Write(3, 'X');
-             } elseif ($boletin->tipo_instalacion === 'ampliacion') {
-                 // casilla "Ampliación"
-                 $pdf->SetXY(57.5, 137);
-                 $pdf->Write(3, 'X');
-             }
+            } elseif ($boletin->tipo_instalacion === 'ampliacion') {
+                $pdf->SetXY(57.5, 137);
+                $pdf->Write(3, 'X');
+            }
 
-
-            // Fecha del boletín (Carbon o string)
+            // Fecha larga
             $fecha = $boletin->fecha ?? now();
-
-            // Convertimos en Carbon si no lo es
             $fechaCarbon = \Carbon\Carbon::parse($fecha);
 
-            // Array de meses
             $meses = [
-                1 => 'Enero',
-                2 => 'Febrero',
-                3 => 'Marzo',
-                4 => 'Abril',
-                5 => 'Mayo',
-                6 => 'Junio',
-                7 => 'Julio',
-                8 => 'Agosto',
-                9 => 'Septiembre',
-                10 => 'Octubre',
-                11 => 'Noviembre',
-                12 => 'Diciembre',
+                1=>'Enero',2=>'Febrero',3=>'Marzo',4=>'Abril',5=>'Mayo',6=>'Junio',
+                7=>'Julio',8=>'Agosto',9=>'Septiembre',10=>'Octubre',11=>'Noviembre',12=>'Diciembre'
             ];
 
-            // Texto completo
-            $textoFecha = "En Jerez a " .
-                $fechaCarbon->day .
-                " de " . $meses[$fechaCarbon->month] .
-                " del " . $fechaCarbon->year;
+            $textoFecha = "En Jerez a {$fechaCarbon->day} de {$meses[$fechaCarbon->month]} del {$fechaCarbon->year}";
 
-            // Poner en PDF
             $pdf->SetFont('Helvetica', '', 8);
-            $pdf->SetXY(20, 250);   // ← Ajustas posición
-            $pdf->Write(4, $textoFecha);
+            $pdf->SetXY(77, 225);
+            $pdf->Write(4, $enc($textoFecha));
 
+            // Marca monofásica en la propia memoria
+            if ($boletin->tipo_instalacion_electrica === 'monofasica') {
+                $pdf->SetAutoPageBreak(false);
+                $pdf->SetMargins(0, 0, 0);
 
-        //     // Uso a que se destina: texto genérico
-        //     $pdf->SetXY(110, 88);
-        //     $pdf->Write(3, $enc('Generación fotovoltaica para autoconsumo'));
-        // }
-
-        // /* =========================
-        //  *   PÁGINA 2
-        //  *   Bloques E2.x (FV)
-        //  * ========================= */
-        // if ($pageNo === 2) {
-
-        //     // --- E2.2 Módulo fotovoltaico ---
-        //     // Marca/modelo: coge el primer modelo de placa si existe
-        //     $primeraPlaca = $boletin->placas->first();
-
-        //     if ($primeraPlaca) {
-        //         $pdf->SetXY(70, 50);   // Marca/modelo
-        //         $pdf->Write(3, $enc($primeraPlaca->modelo_placa));
-
-        //         // Potencia pico del módulo (Wp)
-        //         $pdf->SetXY(130, 50);
-        //         $pdf->Write(3, $enc($primeraPlaca->potencia_placa . ' W'));
-        //     }
-
-        //     // Tecnología de la célula: Monocristalino (por ejemplo)
-        //     $pdf->SetXY(30, 50);
-        //     $pdf->Write(3, $enc('Monocristalino'));
-
-        //     // --- E2.3 Generador fotovoltaico ---
-        //     // Potencia pico total (Wp)
-        //     $pdf->SetXY(25, 65);
-        //     $pdf->Write(3, $enc((string) $boletin->potencia_pico));
-
-        //     // Nº total de módulos (suma de cantidades)
-        //     $totalModulos = $boletin->placas->sum('cantidad_placas');
-        //     $pdf->SetXY(80, 71);
-        //     $pdf->Write(3, $enc((string) $totalModulos));
-
-        //     // Inclinación respecto a la horizontal (valor ejemplo o campo futuro)
-        //     $pdf->SetXY(25, 71);
-        //     $pdf->Write(3, $enc('30')); // si quieres fijo 30º
-
-        //     // Orientación del generador FV
-        //     $pdf->SetXY(135, 71);
-        //     $pdf->Write(3, $enc('Sur 0º'));
-
-
-        //     // --- E2.4 Inversores ---
-        //     // Nº de inversores
-        //     $pdf->SetXY(25, 86);
-        //     $pdf->Write(3, $enc((string) ($boletin->numero_inversores ?? 1)));
-
-        //     // Inversor 1: Marca / Modelo / Potencia AC aproximada
-        //     $pdf->SetXY(55, 90);   // Marca
-        //     $pdf->Write(3, $enc($boletin->marca_inversor ?? ''));
-
-        //     $pdf->SetXY(55, 94);   // Modelo
-        //     $pdf->Write(3, $enc($boletin->modelo_inversor ?? ''));
-
-        //     if (!is_null($potDiKw)) {
-        //         $pdf->SetXY(55, 98);   // Potencia AC, Pn (kW)
-        //         $pdf->Write(3, $enc(number_format($potDiKw, 2, ',', '.') . ' kW'));
-        //     }
-
-        //     // Aquí podrías rellenar más columnas (Inversor 2, Inversor 3…) si un día
-        //     // decides guardar inversores de forma separada.
+                $pdf->SetXY(107, 284);
+                $pdf->Write(3, 'X');
+            }
         }
 
         /* =========================
-         *   PÁGINAS 3 y 4
-         *   (Protecciones, líneas, etc.)
+         *   PÁGINA 2
          * ========================= */
+        if ($pageNo === 2) {
+
+            $pdf->SetMargins(0, 0, 0);
+            $pdf->SetAutoPageBreak(false);
+            $pdf->SetFont('Helvetica', '', 8.5);
+            $pdf->SetTextColor(0, 0, 0);
+
+            $potenciaCruda = trim((string)$boletin->potencia_inversores);
+
+            if ($potenciaCruda !== '') {
+
+                $textoPotencia = $potenciaCruda;
+                $lower = strtolower($textoPotencia);
+
+                if (!str_contains($lower, 'w')) {
+                    $textoPotencia .= ' kW';
+                }
+
+                $pdf->SetFont('Helvetica', '', 9);
+                $pdf->SetXY(82, 105.5);
+                $pdf->Write(3, $enc($textoPotencia));
+            }
+
+            if ($boletin->tipo_instalacion_electrica === 'trifasica') {
+                $pdf->SetXY(107, 12);
+                $pdf->Write(3, 'X');
+            }
+
+            $primeraPlaca = $boletin->placas->first();
+
+            if ($primeraPlaca) {
+                $pdf->SetFont('Helvetica', '', 8.5);
+                $pdf->SetXY(82, 28);
+                $pdf->Write(3, $enc($primeraPlaca->modelo_placa));
+            }
+
+            $totalModulos = $boletin->placas->sum('cantidad_placas');
+
+            $pdf->SetFont('Helvetica', '', 8.5);
+            $pdf->SetXY(83, 60);
+            $pdf->Write(3, $enc($totalModulos));
+
+            $marcaInversor = $boletin->marca_inversor ?? '';
+
+            $pdf->SetFont('Helvetica', '', 8.5);
+            $pdf->SetXY(78, 81);
+            $pdf->Write(3, $enc($marcaInversor));
+
+            $modeloInversor = $boletin->modelo_inversor ?? '';
+
+            $pdf->SetFont('Helvetica', '', 8.5);
+            $pdf->SetXY(71, 92);
+            $pdf->Write(3, $enc($modeloInversor));
+
+            $tension_suministro = $boletin->tension_suministro ?? '';
+
+            $pdf->SetFont('Helvetica', '', 8.5);
+            $pdf->SetXY(82, 100);
+            $pdf->Write(3, $enc($tension_suministro));
+
+            // POTENCIA PICO (generador FV)
+            if (!is_null($potInstKw)) {
+                $textoPico = number_format($potInstKw, 2, ',', '.') . ' kWp';
+
+                $pdf->SetFont('Helvetica', '', 9);
+                $pdf->SetXY(40, 46);
+                $pdf->Write(3, $enc($textoPico));
+            }
+
+            if (!is_null($potInstKw)) {
+                $textoInstalacion = number_format($potInstKw, 2, ',', '.') . ' kW';
+
+                $pdf->SetFont('Helvetica', '', 8.5);
+                $pdf->SetXY(50.1, 270);
+                $pdf->Write(3, $enc($textoInstalacion));
+            }
+
+            if (!is_null($potDiKw)) {
+
+                $textoDerivacion = number_format($potDiKw, 2, ',', '.') . ' kW';
+
+                $pdf->SetFont('Helvetica', '', 8.5);
+
+                $pdf->SetXY(50.1, 282);
+                $pdf->Write(3, $enc($textoDerivacion));
+            }
+        }
+
+        /* =========================
+         *   PÁGINA 3
+         * ========================= */
+        if ($pageNo === 3) {
+
+            if (!is_null($potDiKw)) {
+
+                $textoDerivacion = number_format($potDiKw, 2, ',', '.') . ' kW';
+
+                $pdf->SetFont('Helvetica', '', 8.5);
+
+                $pdf->SetXY(50.1, 20);
+                $pdf->Write(3, $enc($textoDerivacion));
+
+                $pdf->SetXY(50.1, 34);
+                $pdf->Write(3, $enc($textoDerivacion));
+
+                // $textoFecha viene de la página 1
+                $pdf->SetFont('Helvetica', '', 8);
+                $pdf->SetXY(77, 90);
+                $pdf->Write(4, $enc($textoFecha));
+            }
+        }
     }
+
+        /* ==========================================
+        *  MONOFÁSICO
+        * ========================================== */
+    if ($boletin->tipo_instalacion_electrica === 'monofasica') {
+
+    $monoPath = storage_path('app/plantillas/MONOFASICO.pdf');
+
+    if (file_exists($monoPath)) {
+
+        $monoPageCount = $pdf->setSourceFile($monoPath);
+
+        // Colección de placas
+        $placas = $boletin->placas;
+        $totalModulos = $placas->sum('cantidad_placas');
+
+        // --------------- TEXTO MODELOS ---------------
+        $modelosTexto = [];
+        foreach ($placas as $placa) {
+            $cantidad = $placa->cantidad_placas ?? 0;
+            $modelo   = $placa->modelo_placa ?? '';
+
+            if ($cantidad && $modelo) {
+                $modelosTexto[] = "{$cantidad}x {$modelo}";
+            }
+        }
+        $textoModelos = implode(', ', $modelosTexto);
+        $longitudModelos = strlen($textoModelos); // para decidir el tamaño de letra
+
+        for ($p = 1; $p <= $monoPageCount; $p++) {
+
+            $tplMono  = $pdf->importPage($p);
+            $sizeMono = $pdf->getTemplateSize($tplMono);
+
+            $pdf->AddPage($sizeMono['orientation'], [$sizeMono['width'], $sizeMono['height']]);
+            $pdf->useTemplate($tplMono);
+
+            /* ============================
+             *   ESCRIBIR EN PÁGINA 4
+             * ============================ */
+            if ($pageNo === 4) {  
+
+                $pdf->SetTextColor(0, 0, 0);
+                $pdf->SetAutoPageBreak(false);
+                $pdf->SetMargins(0, 0, 0);
+
+                /* -------- A) TOTAL PANELES -------- */
+                $textoTotal = $totalModulos . ' ' . ($totalModulos == 1 ? 'panel solar' : 'paneles solares');
+
+                $pdf->SetFont('Helvetica', '', );
+                $pdf->SetXY(30, 27);
+                $pdf->Write(3, $enc($textoTotal));
+
+                /* -------- B) MODELOS + CANTIDAD -------- */
+
+                if ($textoModelos !== '') {
+
+                    // Elegir tamaño según nº de letras
+                    if ($longitudModelos <= 15) {
+                        $fontSize = 4;   // cortito → grande
+                    } 
+
+                    $pdf->SetFont('Helvetica', '', $fontSize);
+                    $pdf->SetXY(30, 31); // un poco debajo del total
+                    $pdf->Write(3, $enc($textoModelos));
+                }
+
+                $modeloInversor = $boletin->modelo_inversor ?? '';
+                $pdf->SetFont('Helvetica', '', 5);
+                $pdf->SetXY(40, 113); 
+                $pdf->Write(3, $enc($modeloInversor));
+
+            }
+
+
+                $nombreRaw   = trim($cliente->nombre ?? '');            
+                $apellido1   = trim($cliente->primer_apellido ?? '');   
+                $apellido2   = trim($cliente->segundo_apellido ?? '');  
+
+                $partesNombre = preg_split('/\s+/', $nombreRaw);
+                $primerNombre = $partesNombre[0] ?? '';
+
+                $inicialNombre = $primerNombre !== '' ? mb_substr($primerNombre, 0, 1, 'UTF-8') : '';
+
+
+                $nombreCompacto = $inicialNombre . $apellido1 . $apellido2;
+
+                $nombreCompacto = iconv('UTF-8', 'ASCII//TRANSLIT', $nombreCompacto);
+                $nombreCompacto = strtoupper($nombreCompacto);
+
+                $pdf->SetFont('Helvetica', '', 4);
+                $pdf->SetXY(145.5, 117);  
+                $pdf->Write(3, $enc($nombreCompacto));
+                
+                
+                $direccion = trim($cliente->direccion ?? '');
+                $calle  = '';
+                $numero = '';
+
+                $partes = array_map('trim', explode(',', $direccion));
+
+                if (count($partes) >= 2) {
+                    $calle  = $partes[0];
+                    $numero = $partes[1];
+                } elseif (preg_match('/^(.*?)[\s]+(\d+.*)$/', $direccion, $m)) {
+                    $calle  = trim($m[1]);
+                    $numero = trim($m[2]);
+                } else {
+                    $calle  = $direccion;
+                    $numero = '';
+                }
+
+                $cp        = trim($cliente->codigo_postal ?? '');
+                $poblacion = trim($cliente->poblacion ?? '');
+                $provincia = trim($cliente->provincia ?? '');
+
+                $lineaDireccion = "{$calle}, {$numero}, {$cp}, {$poblacion}, {$provincia}";
+
+                $lineaDireccion = mb_strtoupper($lineaDireccion, 'UTF-8');
+
+             
+                $lenDir = strlen($lineaDireccion);
+                if     ($lenDir <= 45) $fontSizeDir = 5;
+                elseif ($lenDir <= 65) $fontSizeDir = 5.5;
+                elseif ($lenDir <= 85) $fontSizeDir = 5;
+                else                   $fontSizeDir = 4;
+
+                $pdf->SetFont('Helvetica', '', 5);
+                $pdf->SetXY(102, 120);   
+                $pdf->Write(3, $enc($lineaDireccion));
+
+                $fechaBoletin = \Carbon\Carbon::parse($boletin->fecha);
+                $fechaFormateada = $fechaBoletin->format('d-m-Y');
+
+                $pdf->SetFont('Helvetica', '', 7);
+                $pdf->SetXY(102, 126.5);
+                $pdf->Write(3, $enc($fechaFormateada));
+
+
+                $nombreCompleto = trim(
+                    ($cliente->nombre ?? '') . ' ' .
+                    ($cliente->primer_apellido ?? '') . ' ' .
+                    ($cliente->segundo_apellido ?? '')
+                );
+
+                $nombreCompletoMayus = mb_strtoupper($nombreCompleto, 'UTF-8');
+
+                $lenNombre = strlen($nombreCompletoMayus);
+
+
+                if ($lenNombre <= 25) {
+                    $fontSizeNombre = 6;
+                } elseif ($lenNombre <= 40) {
+                    $fontSizeNombre = 5.5;
+                } elseif ($lenNombre <= 55) {
+                    $fontSizeNombre = 5;
+                } else {
+                    $fontSizeNombre = 4;
+                }
+
+                $pdf->SetFont('Helvetica', '', $fontSizeNombre);
+                $pdf->SetXY(119, 126.5);   
+                $pdf->Write(3, $enc($nombreCompletoMayus));
+
+        }
+    }
+}
+
+        /* ==========================================
+        *  TRIFÁSICO
+        * ========================================== */
+    if ($boletin->tipo_instalacion_electrica === 'trifasico') {
+
+    $monoPath = storage_path('app/plantillas/TRIFASICA.pdf');
+
+    if (file_exists($monoPath)) {
+
+        $monoPageCount = $pdf->setSourceFile($monoPath);
+
+        // Colección de placas
+        $placas = $boletin->placas;
+        $totalModulos = $placas->sum('cantidad_placas');
+
+        // --------------- TEXTO MODELOS ---------------
+        $modelosTexto = [];
+        foreach ($placas as $placa) {
+            $cantidad = $placa->cantidad_placas ?? 0;
+            $modelo   = $placa->modelo_placa ?? '';
+
+            if ($cantidad && $modelo) {
+                $modelosTexto[] = "{$cantidad}x {$modelo}";
+            }
+        }
+        $textoModelos = implode(', ', $modelosTexto);
+        $longitudModelos = strlen($textoModelos); // para decidir el tamaño de letra
+
+        for ($p = 1; $p <= $monoPageCount; $p++) {
+
+            $tplMono  = $pdf->importPage($p);
+            $sizeMono = $pdf->getTemplateSize($tplMono);
+
+            $pdf->AddPage($sizeMono['orientation'], [$sizeMono['width'], $sizeMono['height']]);
+            $pdf->useTemplate($tplMono);
+
+            /* ============================
+             *   ESCRIBIR EN PÁGINA 4
+             * ============================ */
+            if ($pageNo === 4) {  
+
+                $pdf->SetTextColor(0, 0, 0);
+                $pdf->SetAutoPageBreak(false);
+                $pdf->SetMargins(0, 0, 0);
+
+                /* -------- A) TOTAL PANELES -------- */
+                $textoTotal = $totalModulos . ' ' . ($totalModulos == 1 ? 'panel solar' : 'paneles solares');
+
+                $pdf->SetFont('Helvetica', '', );
+                $pdf->SetXY(30, 27);
+                $pdf->Write(3, $enc($textoTotal));
+
+                /* -------- B) MODELOS + CANTIDAD -------- */
+
+                if ($textoModelos !== '') {
+
+                    // Elegir tamaño según nº de letras
+                    if ($longitudModelos <= 15) {
+                        $fontSize = 4;   // cortito → grande
+                    } 
+
+                    $pdf->SetFont('Helvetica', '', $fontSize);
+                    $pdf->SetXY(30, 31); // un poco debajo del total
+                    $pdf->Write(3, $enc($textoModelos));
+                }
+
+                $modeloInversor = $boletin->modelo_inversor ?? '';
+                $pdf->SetFont('Helvetica', '', 5);
+                $pdf->SetXY(40, 113); 
+                $pdf->Write(3, $enc($modeloInversor));
+
+            }
+
+
+                $nombreRaw   = trim($cliente->nombre ?? '');            
+                $apellido1   = trim($cliente->primer_apellido ?? '');   
+                $apellido2   = trim($cliente->segundo_apellido ?? '');  
+
+                $partesNombre = preg_split('/\s+/', $nombreRaw);
+                $primerNombre = $partesNombre[0] ?? '';
+
+                $inicialNombre = $primerNombre !== '' ? mb_substr($primerNombre, 0, 1, 'UTF-8') : '';
+
+
+                $nombreCompacto = $inicialNombre . $apellido1 . $apellido2;
+
+                $nombreCompacto = iconv('UTF-8', 'ASCII//TRANSLIT', $nombreCompacto);
+                $nombreCompacto = strtoupper($nombreCompacto);
+
+                $pdf->SetFont('Helvetica', '', 4);
+                $pdf->SetXY(145.5, 117);  
+                $pdf->Write(3, $enc($nombreCompacto));
+                
+                
+                $direccion = trim($cliente->direccion ?? '');
+                $calle  = '';
+                $numero = '';
+
+                $partes = array_map('trim', explode(',', $direccion));
+
+                if (count($partes) >= 2) {
+                    $calle  = $partes[0];
+                    $numero = $partes[1];
+                } elseif (preg_match('/^(.*?)[\s]+(\d+.*)$/', $direccion, $m)) {
+                    $calle  = trim($m[1]);
+                    $numero = trim($m[2]);
+                } else {
+                    $calle  = $direccion;
+                    $numero = '';
+                }
+
+                $cp        = trim($cliente->codigo_postal ?? '');
+                $poblacion = trim($cliente->poblacion ?? '');
+                $provincia = trim($cliente->provincia ?? '');
+
+                $lineaDireccion = "{$calle}, {$numero}, {$cp}, {$poblacion}, {$provincia}";
+
+                $lineaDireccion = mb_strtoupper($lineaDireccion, 'UTF-8');
+
+             
+                $lenDir = strlen($lineaDireccion);
+                if     ($lenDir <= 45) $fontSizeDir = 5;
+                elseif ($lenDir <= 65) $fontSizeDir = 5.5;
+                elseif ($lenDir <= 85) $fontSizeDir = 5;
+                else                   $fontSizeDir = 4;
+
+                $pdf->SetFont('Helvetica', '', 5);
+                $pdf->SetXY(102, 120);   
+                $pdf->Write(3, $enc($lineaDireccion));
+
+                $fechaBoletin = \Carbon\Carbon::parse($boletin->fecha);
+                $fechaFormateada = $fechaBoletin->format('d-m-Y');
+
+                $pdf->SetFont('Helvetica', '', 7);
+                $pdf->SetXY(102, 126.5);
+                $pdf->Write(3, $enc($fechaFormateada));
+
+
+                $nombreCompleto = trim(
+                    ($cliente->nombre ?? '') . ' ' .
+                    ($cliente->primer_apellido ?? '') . ' ' .
+                    ($cliente->segundo_apellido ?? '')
+                );
+
+                $nombreCompletoMayus = mb_strtoupper($nombreCompleto, 'UTF-8');
+
+                $lenNombre = strlen($nombreCompletoMayus);
+
+
+                if ($lenNombre <= 25) {
+                    $fontSizeNombre = 6;
+                } elseif ($lenNombre <= 40) {
+                    $fontSizeNombre = 5.5;
+                } elseif ($lenNombre <= 55) {
+                    $fontSizeNombre = 5;
+                } else {
+                    $fontSizeNombre = 4;
+                }
+
+                $pdf->SetFont('Helvetica', '', $fontSizeNombre);
+                $pdf->SetXY(119, 126.5);   
+                $pdf->Write(3, $enc($nombreCompletoMayus));
+
+        }
+    }
+}
+
 
     return $pdf->Output('I', 'MemoriaTecnica.pdf');
 }
 
+
 }
+
