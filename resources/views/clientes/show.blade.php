@@ -207,10 +207,10 @@
 
             <table class="table table-hover mb-0">
                 <thead class="table-header-orange">
-                    <tr>
+                    <tr class="text-center">
                         <th>Fecha</th>
                         <th>Nº registro</th>
-                        <th>CUPS</th>
+                        <th >CUPS</th>
                         <th>Potencia factura luz</th>
                         <th>Marca inversor</th>
                         <th class="text-end">Acciones</th>
@@ -223,8 +223,16 @@
                         <td>{{ $boletin->fecha?->format('d/m/Y') }}</td>
                         <td>{{ $boletin->numero_registro }}</td>
                         <td>{{ $boletin->cups }}</td>
-                        <td>{{ $boletin->potencia_factura_luz }}</td>
-                        <td>{{ $boletin->marca_inversor }}</td>
+                        <td class="text-center">{{ $boletin->potencia_factura_luz }}</td>
+
+                        <td>
+                        @if ($boletin->inversores->count())
+                            {{ $boletin->inversores->pluck('marca')->join(', ') }}
+                        @else
+                            —
+                        @endif
+                        </td>
+
 
                         <td class="text-end">
 

@@ -2,78 +2,113 @@
 
 @section('content')
 
-{{-- 🔸 Estilos rápidos para mejorar la tabla y botones --}}
 <style>
     :root {
-        --orange-main: #ff922b;
-        --orange-dark: #f76707;
-        --orange-soft: #fff4e6;
+        --orange-soft: #ffb457;
+        --orange-soft-dark: #ff922b;
+        --orange-light-bg: #fff4e6;
+        --gray-soft: #f1f3f5;
     }
 
-    .btn-orange {
-        background-color: var(--orange-main);
-        border-color: var(--orange-main);
-        color: white;
+    /* Botones más compactos para que quepan */
+    .btn-clean {
+        border-radius: .45rem !important;
+        padding: .18rem .55rem !important;
+        font-size: 0.80rem !important;
         font-weight: 500;
-    }
-    .btn-orange:hover {
-        background-color: var(--orange-dark);
-        border-color: var(--orange-dark);
-        color: white;
+        white-space: nowrap;
     }
 
-    .btn-outline-orange {
-        border-color: var(--orange-main);
-        color: var(--orange-main);
-        font-weight: 500;
+    /* Botón naranja */
+    .btn-orange-soft {
+        background-color: var(--orange-soft);
+        border: 1px solid var(--orange-soft);
+        color: #fff;
     }
-    .btn-outline-orange:hover {
-        background-color: var(--orange-main);
-        color: white;
+    .btn-orange-soft:hover {
+        background-color: var(--orange-soft-dark);
+        border-color: var(--orange-soft-dark);
+        color: #fff;
     }
 
+    /* Outline naranja */
+    .btn-outline-soft-orange {
+        border: 1px solid var(--orange-soft);
+        color: var(--orange-soft-dark);
+        background-color: #fff;
+    }
+    .btn-outline-soft-orange:hover {
+        background-color: var(--orange-light-bg);
+        color: var(--orange-soft-dark);
+    }
+
+    /* Gris */
+    .btn-outline-gray {
+        border: 1px solid #ced4da;
+        color: #495057;
+        background-color: #fff;
+    }
+    .btn-outline-gray:hover {
+        background-color: var(--gray-soft);
+    }
+
+    /* Rojo */
     .btn-outline-red {
-        border-color: #e03131;
+        border: 1px solid #e03131;
         color: #e03131;
-        font-weight: 500;
+        background-color: #fff;
     }
     .btn-outline-red:hover {
         background-color: #e03131;
-        color: white;
+        color: #fff;
     }
 
-    .table-header-orange {
-        background-color: var(--orange-main) !important;
-        color: white !important;
+    /* Contenedor de botones: NO usar wrap */
+    .actions-nowrap {
+        display: flex;
+        flex-wrap: nowrap !important;
+        gap: .35rem;
+        justify-content: flex-end;
+        overflow-x: auto;     /* permite scroll si hay demasiados */
+        padding-bottom: 2px;  /* evita que aparezca scrollbar encima */
     }
 
+    /* Cabecera centrada */
+    .table-header-orange th {
+        text-align: center !important;
+    }
+
+    /* Centrar texto de las celdas */
+    td, th {
+        vertical-align: middle !important;
+        text-align: center !important;
+    }
+
+    /* Hover de tabla */
     .table-hover tbody tr:hover {
-        background-color: #fff7ef !important;
+        background-color: var(--orange-light-bg) !important;
     }
 </style>
 
 <div class="container mt-4">
 
-    {{-- ALERTA DE ÉXITO --}}
     @if(session('success'))
         <div class="alert alert-success">{{ session('success') }}</div>
     @endif
 
-    {{-- CABECERA --}}
     <div class="d-flex justify-content-between align-items-center mb-3">
         <h2 class="mb-0">Listado de Clientes</h2>
 
-        <a href="{{ route('clientes.create') }}" class="btn btn-orange">
+        <a href="{{ route('clientes.create') }}" class="btn btn-orange-soft btn-clean">
             + Nuevo Cliente
         </a>
     </div>
 
-    {{-- TABLA --}}
     <div class="card shadow-sm">
         <div class="card-body p-0">
 
             <div class="table-responsive">
-                <table class="table table-hover mb-0">
+                <table class="table table-hover mb-0 align-middle">
 
                     <thead class="table-header-orange">
                         <tr>
@@ -84,7 +119,7 @@
                             <th>Teléfono</th>
                             <th>Provincia</th>
                             <th>Código Postal</th>
-                            <th class="text-end">Acciones</th>
+                            <th>Acciones</th>
                         </tr>
                     </thead>
 
@@ -99,29 +134,45 @@
                                 <td>{{ $cliente->provincia }}</td>
                                 <td>{{ $cliente->codigo_postal }}</td>
 
-                                <td class="text-end">
+                                <td>
+                                    <div class="actions-nowrap">
 
-                                    <a href="{{ route('clientes.show', $cliente) }}"
-                                       class="btn btn-sm btn-outline-secondary">
-                                        Ver
-                                    </a>
+                                        <a href="{{ route('clientes.show', $cliente) }}"
+                                           class="btn btn-sm btn-outline-gray btn-clean">
+                                            Ver
+                                        </a>
 
-                                    <a href="{{ route('clientes.edit', $cliente) }}"
-                                       class="btn btn-sm btn-outline-orange">
-                                        Editar
-                                    </a>
+                                        <a href="{{ route('clientes.edit', $cliente) }}"
+                                           class="btn btn-sm btn-outline-soft-orange btn-clean">
+                                            Editar
+                                        </a>
 
-                                    <form action="{{ route('clientes.destroy', $cliente) }}"
-                                          method="POST"
-                                          class="d-inline"
-                                          onsubmit="return confirm('¿Seguro que quieres eliminar este cliente?');">
-                                        @csrf
-                                        @method('DELETE')
-                                        <button class="btn btn-sm btn-outline-red">
-                                            Eliminar
-                                        </button>
-                                    </form>
+                                        @php
+                                            $ultimoBoletin = $cliente->boletines->last();
+                                        @endphp
 
+                                        @if($ultimoBoletin)
+                                            <a href="{{ route('boletines.pdf.memoria', $ultimoBoletin) }}"
+                                               class="btn btn-sm btn-orange-soft btn-clean">
+                                                Memoria técnica
+                                            </a>
+
+                                            <a href="{{ route('boletines.pdf.oficial', $ultimoBoletin) }}"
+                                               class="btn btn-sm btn-outline-soft-orange btn-clean">
+                                                PDF Oficial
+                                            </a>
+                                        @endif
+
+                                        <form action="{{ route('clientes.destroy', $cliente) }}" method="POST"
+                                              onsubmit="return confirm('¿Seguro que quieres eliminar este cliente?');">
+                                            @csrf
+                                            @method('DELETE')
+                                            <button class="btn btn-sm btn-outline-red btn-clean">
+                                                Eliminar
+                                            </button>
+                                        </form>
+
+                                    </div>
                                 </td>
                             </tr>
                         @empty
@@ -139,7 +190,6 @@
         </div>
     </div>
 
-    {{-- PAGINACIÓN --}}
     <div class="mt-3">
         {{ $clientes->links() }}
     </div>

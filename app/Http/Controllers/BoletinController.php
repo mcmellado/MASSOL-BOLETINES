@@ -626,7 +626,7 @@ class BoletinController extends Controller
                     $pdf->Write(1, $enc($nombreCompleto));
 
                     // DNI/CIF
-                     $pdf->SetFont('Helvetica', '', 6.5);
+                    $pdf->SetFont('Helvetica', '', 6.5);
                     $pdf->SetXY(130, 69.2);
                     $pdf->Write(1, $enc($cliente->dni_cif ?? ''));
 
@@ -652,6 +652,7 @@ class BoletinController extends Controller
                     $pdf->Write(1, $enc($cliente->telefono ?? ''));
 
                     // Código postal (zona titular)
+                    $pdf->SetFont('Helvetica', '', 7);
                     $pdf->SetXY(130, 73.9);
                     $pdf->Write(1, $enc($cliente->codigo_postal ?? ''));
 
@@ -1151,11 +1152,11 @@ class BoletinController extends Controller
                     7=>'Julio',8=>'Agosto',9=>'Septiembre',10=>'Octubre',11=>'Noviembre',12=>'Diciembre'
                 ];
 
-                $textoFecha = "En Jerez a {$fechaCarbon->day} de {$meses[$fechaCarbon->month]} del {$fechaCarbon->year}";
+                $textoFecha = "En Jerez de la Frontera a {$fechaCarbon->day} de {$meses[$fechaCarbon->month]} del {$fechaCarbon->year}";
 
                 $pdf->SetFont('Helvetica', '', 8);
-                $pdf->SetXY(77, 225);
-                $pdf->Write(4, $enc($textoFecha));
+                $pdf->SetXY(70, 225);
+                $pdf->Write(4, $textoFecha);
 
                 if ($boletin->tipo_instalacion_electrica === 'monofasica') {
                     $pdf->SetAutoPageBreak(false);
@@ -1198,7 +1199,7 @@ class BoletinController extends Controller
                     }
 
 
-                                    // ===== MOSTRAR TOTAL INVERSORES (UNA SOLA VEZ) =====
+                     // ===== MOSTRAR TOTAL INVERSORES (UNA SOLA VEZ) =====
                     if ($potInvTotalKw > 0) {
                         // sin decimales
                         $textoPnTotal = intval(round($potInvTotalKw)) . ' kW';
@@ -1448,10 +1449,10 @@ class BoletinController extends Controller
                         1=>'Enero',2=>'Febrero',3=>'Marzo',4=>'Abril',5=>'Mayo',6=>'Junio',
                         7=>'Julio',8=>'Agosto',9=>'Septiembre',10=>'Octubre',11=>'Noviembre',12=>'Diciembre'
                     ];
-                    $textoFecha = "En Jerez a {$fechaBoletin->day} de {$meses[$fechaBoletin->month]} del {$fechaBoletin->year}";
+                    $textoFecha = "En Jerez de la Frontera a {$fechaBoletin->day} de {$meses[$fechaBoletin->month]} del {$fechaBoletin->year}";
 
                     $pdf->SetFont('Helvetica', '', 8);
-                    $pdf->SetXY(77, 90);
+                    $pdf->SetXY(70, 90);
                     $pdf->Write(4, $enc($textoFecha));
                 }
             }
