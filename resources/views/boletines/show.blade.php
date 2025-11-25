@@ -274,182 +274,69 @@
         </div>
 
         {{-- Inversores --}}
-        <div class="col-lg-6">
-            <div class="card section-card card-lift h-100">
-                <div class="card-header section-card-header d-flex justify-content-between align-items-center">
-                    <div class="section-title mb-0">
-                        Inversores
-                    </div>
-                    <span class="badge bg-orange-soft text-orange">
-                        {{ $boletin->numero_inversores ?? 1 }}
-                        inversor{{ ($boletin->numero_inversores ?? 1) > 1 ? 'es' : '' }}
-                    </span>
-                </div>
-                <div class="card-body">
-                    <div class="row g-3 mb-2">
-                        <div class="col-6">
-                            <span class="text-muted small d-block">Marca</span>
-                            <span class="fw-semibold">
-                                {{ $boletin->marca_inversor ?: '—' }}
-                            </span>
-                        </div>
-                        <div class="col-6">
-                            <span class="text-muted small d-block">Modelo</span>
-                            <span class="fw-semibold">
-                                {{ $boletin->modelo_inversor ?: '—' }}
-                            </span>
-                        </div>
-                    </div>
-
-                    <div class="row g-3 mb-3">
-                        <div class="col-6">
-                            <span class="text-muted small d-block">Potencia (dato)</span>
-                            <span class="fw-semibold">
-                                {{ $boletin->potencia_inversores ?: '—' }}
-                            </span>
-                        </div>
-                        <div class="col-6">
-                            <span class="text-muted small d-block">Nº inversores</span>
-                            <span class="fw-semibold">
-                                {{ $boletin->numero_inversores ?? '—' }}
-                            </span>
-                        </div>
-                    </div>
-
-                    <div class="pt-3 border-top">
-                        <span class="text-muted small d-block">Potencia total inversores</span>
-                        @isset($potenciaDerivacionKw)
-                            <span class="fw-bold text-orange fs-5">
-                                {{ number_format($potenciaDerivacionKw, 2, ',', '.') }} kW
-                            </span>
-                        @else
-                            <span class="text-muted">No calculada</span>
-                        @endisset
-                        <small class="text-muted d-block mt-1">
-                            Calculada usando potencia del inversor y número de inversores.
-                        </small>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    {{-- FILA 2: INSTALACIÓN + BATERÍAS / CUBIERTA / PROTECCIONES --}}
-    <div class="row g-3 mb-4">
-        {{-- Instalación eléctrica + Protecciones --}}
-        <div class="col-lg-6">
-            <div class="card section-card card-lift mb-3">
-                <div class="card-header section-card-header">
-                    <div class="section-title">
-                        Instalación eléctrica
-                    </div>
-                </div>
-                <div class="card-body">
-                    <div class="row g-3 mb-2">
-                        <div class="col-sm-6">
-                            <span class="text-muted small d-block">Tipo instalación eléctrica</span>
-                            <span class="fw-semibold">
-                                {{ ucfirst($boletin->tipo_instalacion_electrica) }}
-                            </span>
-                        </div>
-                        <div class="col-sm-6">
-                            <span class="text-muted small d-block">Tensión suministro</span>
-                            <span class="fw-semibold">
-                                {{ $boletin->tension_suministro }}
-                            </span>
-                        </div>
-                    </div>
-                    <div>
-                        <span class="text-muted small d-block">Tipo instalación</span>
-                        <span class="fw-semibold">
-                            {{ ucfirst($boletin->tipo_instalacion) }}
-                        </span>
-                    </div>
-                </div>
+<div class="col-lg-6">
+    <div class="card section-card card-lift h-100">
+        <div class="card-header section-card-header d-flex justify-content-between align-items-center">
+            <div class="section-title mb-0">
+                Inversores
             </div>
 
-            <div class="card section-card card-lift">
-                <div class="card-header section-card-header">
-                    <div class="section-title">
-                        Protecciones contra sobreintensidades
-                    </div>
-                </div>
-                <div class="card-body">
-                    @php
-                        $textoProteccion = match ($boletin->proteccion_sobretension) {
-                            'interruptor_automatico' => 'Interruptor automático de protección contra sobrecargas y cortocircuitos',
-                            'fusibles_calibrados'    => 'Fusibles calibrados de protección contra sobrecargas y cortocircuitos',
-                            default                  => null,
-                        };
-                    @endphp
+            @php
+                // Usamos la relación Eloquent
+                $listaInversores = $boletin->inversores ?? collect();
+                $countInversores = $listaInversores->count();
+            @endphp
 
-                    @if($textoProteccion)
-                        <p class="mb-0">{{ $textoProteccion }}</p>
-                    @else
-                        <em class="text-muted">No se ha especificado protección contra sobreintensidades.</em>
-                    @endif
-                </div>
-            </div>
+            <span class="badge bg-orange-soft text-orange">
+                {{ $countInversores }}
+                inversor{{ $countInversores !== 1 ? 'es' : '' }}
+            </span>
         </div>
 
-        {{-- Baterías + Tipo cubierta --}}
-        <div class="col-lg-6">
-            <div class="card section-card card-lift mb-3">
-                <div class="card-header section-card-header">
-                    <div class="section-title">
-                        Baterías
-                    </div>
-                </div>
-                <div class="card-body">
-                    <p class="mb-2">
-                        <span class="text-muted small d-block">¿Tiene batería?</span>
-                        <span class="fw-semibold">
-                            {{ $boletin->tiene_bateria ? 'Sí' : 'No' }}
-                        </span>
-                    </p>
-
-                    @if($boletin->tiene_bateria)
-                        <p class="mb-2">
-                            <span class="text-muted small d-block">Potencia batería</span>
-                            <span class="fw-semibold">
-                                {{ $boletin->potencia_bateria }}
-                            </span>
-                        </p>
-                        <p class="mb-0">
-                            <span class="text-muted small d-block">Nº baterías</span>
-                            <span class="fw-semibold">
-                                {{ $boletin->numero_baterias }}
-                            </span>
-                        </p>
-                    @endif
-                </div>
-            </div>
-
-            <div class="card section-card card-lift">
-                <div class="card-header section-card-header">
-                    <div class="section-title">
-                        Tipo de instalación en cubierta
-                    </div>
-                </div>
-                <div class="card-body">
-                    @php
-                        $tiposCubierta = $boletin->tipos_cubierta ?? [];
-                    @endphp
-
-                    @if(!empty($tiposCubierta) && is_array($tiposCubierta))
-                        <ul class="mb-0">
-                            @foreach($tiposCubierta as $tipo)
-                                <li>{{ $tipo }}</li>
+        <div class="card-body">
+            @if($countInversores > 0)
+                <div class="table-responsive">
+                    <table class="table table-sm table-striped table-hover align-middle mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Marca</th>
+                                <th>Modelo</th>
+                                <th>Potencia</th>
+                                <th>Cantidad</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach($listaInversores as $inv)
+                                <tr>
+                                    <td>{{ $inv->marca ?? '—' }}</td>
+                                    <td>{{ $inv->modelo ?? '—' }}</td>
+                                    <td>{{ $inv->potencia ?? '—' }}</td>
+                                    <td>{{ $inv->cantidad ?? '—' }}</td>
+                                </tr>
                             @endforeach
-                        </ul>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="pt-3 border-top">
+                    <span class="text-muted small d-block">Potencia total inversores</span>
+                    @if(!is_null($potenciaDerivacionKw))
+                        <span class="fw-bold text-orange fs-5">
+                            {{ number_format($potenciaDerivacionKw, 2, ',', '.') }} kW
+                        </span>
                     @else
-                        <em class="text-muted">No se ha especificado tipo de instalación en cubierta.</em>
+                        <span class="text-muted">—</span>
                     @endif
                 </div>
-            </div>
+
+            @else
+                <em class="text-muted">No se han añadido inversores a este boletín.</em>
+            @endif
         </div>
     </div>
+</div>
 
+       
     {{-- PLACAS SOLARES --}}
     <div class="card section-card card-lift mb-4">
         <div class="card-header section-card-header d-flex justify-content-between align-items-center">

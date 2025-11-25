@@ -20,9 +20,6 @@ class Boletin extends Model
         'potencia_factura_luz',
         'metros_cuadrados_vivienda',
         'potencia_pico',
-        'marca_inversor',
-        'modelo_inversor',
-        'potencia_inversores',
         'tipo_instalacion_electrica',
         'tension_suministro',
         'tipo_instalacion',
@@ -31,14 +28,17 @@ class Boletin extends Model
         'potencia_bateria',
         'numero_baterias',
         'proteccion_sobretension',
-        'numero_inversores'
     ];
 
     protected $casts = [
+        'fecha'          => 'date',
         'tipos_cubierta' => 'array',
-        'tiene_bateria' => 'boolean',
-        'fecha' => 'date',
+        'tiene_bateria'  => 'boolean',
     ];
+
+    /*
+     * Relaciones
+     */
 
     public function cliente()
     {
@@ -48,5 +48,10 @@ class Boletin extends Model
     public function placas()
     {
         return $this->hasMany(BoletinPlaca::class);
+    }
+
+    public function inversores()
+    {
+        return $this->hasMany(Inversor::class);
     }
 }

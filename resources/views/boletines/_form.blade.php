@@ -30,19 +30,12 @@
     $oldNuevosPlaca     = old('modelo_placa_nuevo', []);
     $oldCantidadesPlaca = old('cantidad_placas', []);
 
-    // Marca inversor (select + nuevo)
-    $marcaInversorSeleccionada = old('marca_inversor', $boletin->marca_inversor ?? '');
-    $marcaInversorNuevoTexto = old(
-        'marca_inversor_nuevo',
-        (!empty($marcaInversorSeleccionada)
-            && !in_array($marcaInversorSeleccionada, $marcasInversor ?? [])
-            && $marcaInversorSeleccionada !== '__nuevo__')
-            ? $marcaInversorSeleccionada
-            : ''
-    );
-    $marcaInversorEsNuevo = $marcaInversorSeleccionada === '__nuevo__'
-        || (!empty($marcaInversorSeleccionada)
-            && !in_array($marcaInversorSeleccionada, $marcasInversor ?? []));
+    // Variables para inversores (arrays)
+    $oldMarcasInversor        = old('marca_inversor', []);
+    $oldMarcasInversorNuevo   = old('marca_inversor_nuevo', []);
+    $oldModelosInversor       = old('modelo_inversor', []);
+    $oldPotenciasInversor     = old('potencia_inversores', []);
+    $oldNumerosInversor       = old('numero_inversores', []);
 @endphp
 
 
@@ -160,77 +153,307 @@
 
 <hr>
 
-
 {{-- ----------------------------------------------------
-     INVERSORES (CON NUEVA MARCA)
+     INVERSORES (MÚLTIPLES)
 ----------------------------------------------------- --}}
-<div class="row mb-3">
-    <div class="col-md-4">
-        <label for="marca_inversor" class="form-label">Marca inversor</label>
-        <select name="marca_inversor" id="marca_inversor"
-                class="form-select selector-marca-inversor @error('marca_inversor') is-invalid @enderror">
-            <option value="">-- Selecciona marca --</option>
-            @foreach($marcasInversor as $marca)
-                <option value="{{ $marca }}"
-                    {{ $marcaInversorSeleccionada === $marca ? 'selected' : '' }}>
-                    {{ $marca }}
-                </option>
-            @endforeach
-            <option value="__nuevo__" {{ $marcaInversorEsNuevo ? 'selected' : '' }}>
-                Otra / nueva marca...
-            </option>
-        </select>
+<h5>Inversores</h5>
 
-        <input type="text"
-               name="marca_inversor_nuevo"
-               class="form-control mt-2 campo-marca-inversor-nueva {{ $marcaInversorEsNuevo ? '' : 'd-none' }}"
-               value="{{ $marcaInversorNuevoTexto }}"
-               placeholder="Escribe la marca del inversor">
+<div id="inversores-container" class="mt-3">
 
-        @error('marca_inversor')
-            <div class="invalid-feedback">{{ $message }}</div>
-        @enderror
-        @error('marca_inversor_nuevo')
-            <div class="text-danger small mt-1">{{ $message }}</div>
-        @enderror
-    </div>
+    {{-- 1) Caso OLD (error de validación) --}}
+    @if(!empty($oldMarcasInversor))
+        @foreach($oldMarcasInversor as $i => $marcaSeleccionada)
+            @php
+                $marcaSeleccionada = $marcaSeleccionada ?? '';
+                $marcaEsNueva = $marcaSeleccionada === '__nuevo__'
+                    || (!empty($marcaSeleccionada) && !in_array($marcaSeleccionada, $marcasInversor ?? []));
+                $textoMarcaNueva = $oldMarcasInversorNuevo[$i] ?? (
+                    $marcaEsNueva && $marcaSeleccionada !== '__nuevo__'
+                        ? $marcaSeleccionada
+                        : ''
+                );
+            @endphp
 
-    <div class="col-md-4">
-        <label for="modelo_inversor" class="form-label">Modelo inversor</label>
-        <input type="text"
-               name="modelo_inversor"
-               id="modelo_inversor"
-               class="form-control @error('modelo_inversor') is-invalid @enderror"
-               value="{{ old('modelo_inversor', $boletin->modelo_inversor ?? '') }}">
-        @error('modelo_inversor')
-            <div class="invalid-feedback">{{ $message }}</div>
-        @enderror
-    </div>
+            <div class="row inversor-item align-items-end mb-2">
+                <div class="col-md-3 mb-2">
+                    <label class="form-label">Marca inversor</label>
+                    <select name="marca_inversor[]" class="form-select selector-marca-inversor">
+                        <option value="">-- Selecciona marca --</option>
+                        @foreach($marcasInversor as $marca)
+                            <option value="{{ $marca }}"
+                                {{ (!$marcaEsNueva && $marcaSeleccionada === $marca) ? 'selected' : '' }}>
+                                {{ $marca }}
+                            </option>
+                        @endforeach
+                        <option value="__nuevo__" {{ $marcaEsNueva ? 'selected' : '' }}>
+                            Otra / nueva marca...
+                        </option>
+                    </select>
 
-    <div class="col-md-4">
-        <label for="potencia_inversores" class="form-label">Potencia inversores</label>
-        <input type="text"
-               name="potencia_inversores"
-               id="potencia_inversores"
-               class="form-control @error('potencia_inversores') is-invalid @enderror"
-               value="{{ old('potencia_inversores', $boletin->potencia_inversores ?? '') }}">
-        @error('potencia_inversores')
-            <div class="invalid-feedback">{{ $message }}</div>
-        @enderror
-    </div>
+                    <input type="text"
+                           name="marca_inversor_nuevo[]"
+                           class="form-control mt-2 campo-marca-inversor-nueva {{ $marcaEsNueva ? '' : 'd-none' }}"
+                           value="{{ $textoMarcaNueva }}"
+                           placeholder="Escribe la marca del inversor">
+                </div>
+
+                <div class="col-md-3 mb-2">
+                    <label class="form-label">Modelo inversor</label>
+                    <input type="text"
+                           name="modelo_inversor[]"
+                           class="form-control"
+                           value="{{ $oldModelosInversor[$i] ?? '' }}">
+                </div>
+
+                <div class="col-md-3 mb-2">
+                    <label class="form-label">Potencia inversor</label>
+                    <input type="text"
+                           name="potencia_inversores[]"
+                           class="form-control"
+                           value="{{ $oldPotenciasInversor[$i] ?? '' }}">
+                </div>
+
+                <div class="col-md-2 mb-2">
+                    <label class="form-label">Número de inversores</label>
+                    <input type="number"
+                           name="numero_inversores[]"
+                           class="form-control"
+                           value="{{ $oldNumerosInversor[$i] ?? '' }}">
+                </div>
+
+                <div class="col-md-1 mb-2 text-end">
+                    <button type="button" class="btn btn-outline-danger btn-remove-inversor">
+                        Eliminar
+                    </button>
+                </div>
+            </div>
+        @endforeach
+
+    {{-- 2) Caso: boletín con inversores guardados (EDIT) --}}
+    @elseif(isset($boletin) && method_exists($boletin, 'inversores') && $boletin->inversores->count() > 0)
+        @foreach($boletin->inversores as $inv)
+            @php
+                // AHORA usamos las columnas de la tabla inversores:
+                // marca, modelo, potencia, cantidad
+                $marcaGuardada  = $inv->marca ?? '';
+                $marcaEnListado = in_array($marcaGuardada, $marcasInversor ?? []);
+            @endphp
+
+            <div class="row inversor-item align-items-end mb-2">
+
+                <div class="col-md-3 mb-2">
+                    <label class="form-label">Marca inversor</label>
+                    <select name="marca_inversor[]" class="form-select selector-marca-inversor">
+                        <option value="">-- Selecciona marca --</option>
+                        @foreach($marcasInversor as $marca)
+                            <option value="{{ $marca }}"
+                                {{ $marcaEnListado && $marcaGuardada === $marca ? 'selected' : '' }}>
+                                {{ $marca }}
+                            </option>
+                        @endforeach
+                        <option value="__nuevo__" {{ !$marcaEnListado && $marcaGuardada ? 'selected' : '' }}>
+                            Otra / nueva marca...
+                        </option>
+                    </select>
+
+                    <input type="text"
+                           name="marca_inversor_nuevo[]"
+                           class="form-control mt-2 campo-marca-inversor-nueva {{ $marcaEnListado ? 'd-none' : '' }}"
+                           value="{{ $marcaEnListado ? '' : $marcaGuardada }}"
+                           placeholder="Escribe la marca del inversor">
+                </div>
+
+                <div class="col-md-3 mb-2">
+                    <label class="form-label">Modelo inversor</label>
+                    <input type="text"
+                           name="modelo_inversor[]"
+                           class="form-control"
+                           value="{{ $inv->modelo }}">
+                </div>
+
+                <div class="col-md-3 mb-2">
+                    <label class="form-label">Potencia inversor</label>
+                    <input type="text"
+                           name="potencia_inversores[]"
+                           class="form-control"
+                           value="{{ $inv->potencia }}">
+                </div>
+
+                <div class="col-md-2 mb-2">
+                    <label class="form-label">Número de inversores</label>
+                    <input type="number"
+                           name="numero_inversores[]"
+                           class="form-control"
+                           value="{{ $inv->cantidad }}">
+                </div>
+
+                <div class="col-md-1 mb-2 text-end">
+                    <button type="button" class="btn btn-outline-danger btn-remove-inversor">
+                        Eliminar
+                    </button>
+                </div>
+
+            </div>
+        @endforeach
+
+    {{-- 3) Caso sin inversores (nuevo boletín) --}}
+    @else
+        <div class="row inversor-item align-items-end mb-2">
+
+            <div class="col-md-3 mb-2">
+                <label class="form-label">Marca inversor</label>
+                <select name="marca_inversor[]" class="form-select selector-marca-inversor">
+                    <option value="">-- Selecciona marca --</option>
+                    @foreach($marcasInversor as $marca)
+                        <option value="{{ $marca }}">{{ $marca }}</option>
+                    @endforeach
+                    <option value="__nuevo__">Otra / nueva marca...</option>
+                </select>
+
+                <input type="text"
+                       name="marca_inversor_nuevo[]"
+                       class="form-control mt-2 campo-marca-inversor-nueva d-none"
+                       placeholder="Escribe la marca del inversor">
+            </div>
+
+            <div class="col-md-3 mb-2">
+                <label class="form-label">Modelo inversor</label>
+                <input type="text"
+                       name="modelo_inversor[]"
+                       class="form-control">
+            </div>
+
+            <div class="col-md-3 mb-2">
+                <label class="form-label">Potencia inversor</label>
+                <input type="text"
+                       name="potencia_inversores[]"
+                       class="form-control">
+            </div>
+
+            <div class="col-md-2 mb-2">
+                <label class="form-label">Número de inversores</label>
+                <input type="number"
+                       name="numero_inversores[]"
+                       class="form-control">
+            </div>
+
+            <div class="col-md-1 mb-2 text-end">
+                <button type="button" class="btn btn-outline-danger btn-remove-inversor">
+                    Eliminar
+                </button>
+            </div>
+
+        </div>
+    @endif
+
 </div>
 
-<div class="col-md-4">
-    <label for="numero_inversores" class="form-label">Número de inversores</label>
-    <input type="number"
-           name="numero_inversores"
-           id="numero_inversores"
-           class="form-control @error('numero_inversores') is-invalid @enderror"
-           value="{{ old('numero_inversores', $boletin->numero_inversores ?? '') }}">
-    @error('numero_inversores')
-        <div class="invalid-feedback">{{ $message }}</div>
-    @enderror
-</div>
+<button type="button" id="btn-add-inversor" class="btn btn-outline-primary btn-sm mt-2">
+    + Añadir inversor
+</button>
+
+<template id="inversor-template">
+    <div class="row inversor-item align-items-end mb-2">
+
+        <div class="col-md-3 mb-2">
+            <label class="form-label">Marca inversor</label>
+            <select name="marca_inversor[]" class="form-select selector-marca-inversor">
+                <option value="">-- Selecciona marca --</option>
+                @foreach($marcasInversor as $marca)
+                    <option value="{{ $marca }}">{{ $marca }}</option>
+                @endforeach
+                <option value="__nuevo__">Otra / nueva marca...</option>
+            </select>
+
+            <input type="text"
+                   name="marca_inversor_nuevo[]"
+                   class="form-control mt-2 campo-marca-inversor-nueva d-none"
+                   placeholder="Escribe la marca del inversor">
+        </div>
+
+        <div class="col-md-3 mb-2">
+            <label class="form-label">Modelo inversor</label>
+            <input type="text"
+                   name="modelo_inversor[]"
+                   class="form-control">
+        </div>
+
+        <div class="col-md-3 mb-2">
+            <label class="form-label">Potencia inversor</label>
+            <input type="text"
+                   name="potencia_inversores[]"
+                   class="form-control">
+        </div>
+
+        <div class="col-md-2 mb-2">
+            <label class="form-label">Número de inversores</label>
+            <input type="number"
+                   name="numero_inversores[]"
+                   class="form-control">
+        </div>
+
+        <div class="col-md-1 mb-2 text-end">
+            <button type="button" class="btn btn-outline-danger btn-remove-inversor">
+                Eliminar
+            </button>
+        </div>
+
+    </div>
+</template>
+
+
+
+
+
+{{-- TEMPLATE INVERSOR --}}
+<template id="inversor-template">
+    <div class="row inversor-item align-items-end mb-2">
+
+        <div class="col-md-3 mb-2">
+            <label class="form-label">Marca inversor</label>
+            <select name="marca_inversor[]" class="form-select selector-marca-inversor">
+                <option value="">-- Selecciona marca --</option>
+                @foreach($marcasInversor as $marca)
+                    <option value="{{ $marca }}">{{ $marca }}</option>
+                @endforeach
+                <option value="__nuevo__">Otra / nueva marca...</option>
+            </select>
+
+            <input type="text"
+                   name="marca_inversor_nuevo[]"
+                   class="form-control mt-2 campo-marca-inversor-nueva d-none"
+                   placeholder="Escribe la marca del inversor">
+        </div>
+
+        <div class="col-md-3 mb-2">
+            <label class="form-label">Modelo inversor</label>
+            <input type="text"
+                   name="modelo_inversor[]"
+                   class="form-control">
+        </div>
+
+        <div class="col-md-3 mb-2">
+            <label class="form-label">Potencia inversor</label>
+            <input type="text"
+                   name="potencia_inversores[]"
+                   class="form-control">
+        </div>
+
+        <div class="col-md-2 mb-2">
+            <label class="form-label">Número de inversores</label>
+            <input type="number"
+                   name="numero_inversores[]"
+                   class="form-control">
+        </div>
+
+        <div class="col-md-1 mb-2 text-end">
+            <button type="button" class="btn btn-outline-danger btn-remove-inversor">
+                Eliminar
+            </button>
+        </div>
+
+    </div>
+</template>
 
 <hr>
 
@@ -262,8 +485,8 @@
                 class="form-select @error('tension_suministro') is-invalid @enderror">
             <option value="">-- Selecciona tensión --</option>
             @foreach($tensionesSuministro as $tension)
-                <option value="{{ $tension }}
-                    " {{ old('tension_suministro', $boletin->tension_suministro ?? '') === $tension ? 'selected' : '' }}>
+                <option value="{{ $tension }}"
+                    {{ old('tension_suministro', $boletin->tension_suministro ?? '') === $tension ? 'selected' : '' }}>
                     {{ $tension }}
                 </option>
             @endforeach
@@ -546,7 +769,7 @@
 </button>
 
 
-{{-- TEMPLATE --}}
+{{-- TEMPLATE PLACA --}}
 <template id="placa-template">
     <div class="row placa-item align-items-end mb-2">
 
@@ -582,48 +805,65 @@
 
 
 {{-- ----------------------------------------------------
-     JS para dinámicos (placas + marca inversor)
+     JS para dinámicos (placas + inversores + marca inversor)
 ----------------------------------------------------- --}}
 <script>
     document.addEventListener('DOMContentLoaded', function () {
+        // ----- PLACAS -----
         const btnAdd    = document.getElementById('btn-add-placa');
         const container = document.getElementById('placas-container');
         const template  = document.getElementById('placa-template');
 
-        // Añadir placa
-        btnAdd.addEventListener('click', () => {
-            container.appendChild(template.content.cloneNode(true));
-        });
+        if (btnAdd && container && template) {
+            btnAdd.addEventListener('click', () => {
+                container.appendChild(template.content.cloneNode(true));
+            });
 
-        // Eliminar placa
-        container.addEventListener('click', e => {
-            if (e.target.classList.contains('btn-remove-placa')) {
-                e.target.closest('.placa-item').remove();
-            }
-        });
-
-        // Select dinámico de placas -> mostrar input si "__nuevo__"
-        container.addEventListener('change', e => {
-            if (e.target.classList.contains('selector-modelo-placa')) {
-                const select = e.target;
-                const wrapper = select.closest('.col-md-6');
-                const inputNuevo = wrapper.querySelector('.campo-modelo-nuevo');
-
-                if (select.value === '__nuevo__') {
-                    inputNuevo.classList.remove('d-none');
-                    inputNuevo.focus();
-                } else {
-                    inputNuevo.classList.add('d-none');
-                    inputNuevo.value = '';
+            container.addEventListener('click', e => {
+                if (e.target.classList.contains('btn-remove-placa')) {
+                    e.target.closest('.placa-item').remove();
                 }
-            }
-        });
+            });
+
+            container.addEventListener('change', e => {
+                if (e.target.classList.contains('selector-modelo-placa')) {
+                    const select = e.target;
+                    const wrapper = select.closest('.col-md-6');
+                    const inputNuevo = wrapper.querySelector('.campo-modelo-nuevo');
+
+                    if (select.value === '__nuevo__') {
+                        inputNuevo.classList.remove('d-none');
+                        inputNuevo.focus();
+                    } else {
+                        inputNuevo.classList.add('d-none');
+                        inputNuevo.value = '';
+                    }
+                }
+            });
+        }
+
+        // ----- INVERSORES -----
+        const btnAddInversor    = document.getElementById('btn-add-inversor');
+        const containerInversor = document.getElementById('inversores-container');
+        const templateInversor  = document.getElementById('inversor-template');
+
+        if (btnAddInversor && containerInversor && templateInversor) {
+            btnAddInversor.addEventListener('click', () => {
+                containerInversor.appendChild(templateInversor.content.cloneNode(true));
+            });
+
+            containerInversor.addEventListener('click', e => {
+                if (e.target.classList.contains('btn-remove-inversor')) {
+                    e.target.closest('.inversor-item').remove();
+                }
+            });
+        }
 
         // Select dinámico de marca de inversor
         document.addEventListener('change', e => {
             if (e.target.classList.contains('selector-marca-inversor')) {
                 const select = e.target;
-                const wrapper = select.closest('.col-md-4');
+                const wrapper = select.closest('.col-md-3') || select.closest('.col-md-4');
                 const inputNuevo = wrapper.querySelector('.campo-marca-inversor-nueva');
 
                 if (select.value === '__nuevo__') {

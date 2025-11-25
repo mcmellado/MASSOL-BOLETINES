@@ -11,26 +11,21 @@ return new class extends Migration
         Schema::create('boletines', function (Blueprint $table) {
             $table->id();
 
-            $table->foreignId('cliente_id')->constrained('clientes')->onDelete('cascade');
+            $table->foreignId('cliente_id')
+                  ->constrained('clientes')
+                  ->onDelete('cascade');
 
             $table->date('fecha');
             $table->string('numero_registro')->nullable();
             $table->string('cups')->nullable();
             $table->string('referencia_catastral')->nullable();
 
-            // Potencia contratada en factura de luz
+            // Potencia contratada en la factura de luz
             $table->string('potencia_factura_luz')->nullable();
 
             $table->string('metros_cuadrados_vivienda')->nullable();
 
             $table->decimal('potencia_pico', 10, 2)->nullable();
-
-            $table->string('marca_inversor');
-            $table->string('modelo_inversor')->nullable();
-            $table->string('potencia_inversores')->nullable();
-
-            // NUEVO CAMPO
-            $table->integer('numero_inversores')->nullable();
 
             $table->string('tipo_instalacion_electrica');
             $table->string('tension_suministro');
@@ -41,6 +36,7 @@ return new class extends Migration
             $table->boolean('tiene_bateria')->default(false);
             $table->string('potencia_bateria')->nullable();
             $table->integer('numero_baterias')->nullable();
+
             $table->enum('proteccion_sobretension', [
                 'interruptor_automatico',
                 'fusibles_calibrados'
