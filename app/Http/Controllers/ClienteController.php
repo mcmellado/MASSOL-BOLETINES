@@ -9,16 +9,28 @@ class ClienteController extends Controller
 {
     public function index(Request $request)
 {
-    $search = $request->input('search');
+    $search = trim($request->input('search'));
 
     $clientes = Cliente::query()
         ->when($search, function ($q) use ($search) {
-            $q->where(function ($q) use ($search) {
-                $q->where('nombre', 'like', "%{$search}%")
-                  ->orWhere('primer_apellido', 'like', "%{$search}%")
-                  ->orWhere('dni_cif', 'like', "%{$search}%")
-                  ->orWhere('email', 'like', "%{$search}%")
-                  ->orWhere('telefono', 'like', "%{$search}%");
+
+            // Separamos por espacios: "Francisco Robles Madrid" → ["Francisco", "Robles", "Madrid"]
+            $terms = preg_split('/\s+/', $search);
+
+            $q->where(function ($query) use ($terms) {
+
+                foreach ($terms as $term) {
+                    $query->where(function ($sub) use ($term) {
+                        $sub->where('nombre', 'like', "%{$term}%")
+                            ->orWhere('primer_apellido', 'like', "%{$term}%")
+                            ->orWhere('segundo_apellido', 'like', "%{$term}%")
+                            ->orWhere('dni_cif', 'like', "%{$term}%")
+                            ->orWhere('email', 'like', "%{$term}%")
+                            ->orWhere('telefono', 'like', "%{$term}%")
+                            ->orWhere('poblacion', 'like', "%{$term}%")
+                            ->orWhere('provincia', 'like', "%{$term}%");
+                    });
+                }
             });
         })
         ->orderBy('id', 'desc')

@@ -12,31 +12,39 @@ class ClienteSeeder extends Seeder
     {
         $faker = Faker::create('es_ES');
 
-        for ($i = 0; $i < 50; $i++) {
-            Cliente::create([
-                'nombre'            => $faker->firstName(),
-                'primer_apellido'   => $faker->lastName(),
-                'segundo_apellido'  => $faker->lastName(),
-                'dni_cif'           => $this->generarDNI(),
-                'email'             => $faker->unique()->safeEmail(),
-                'telefono'          => $faker->numerify('6########'),
-                'direccion'         => $faker->streetAddress(),
-                'poblacion'         => $faker->city(),
-                'provincia'         => $faker->state(),
-                'codigo_postal'     => $faker->postcode(),
-            ]);
+        $provincias = [
+            'Madrid' => ['Madrid', 'Alcorcón', 'Leganés', 'Getafe', 'Móstoles', 'Fuenlabrada', 'Parla'],
+            'Barcelona' => ['Barcelona', 'Badalona', 'Hospitalet', 'Sabadell', 'Terrassa', 'Mataró'],
+            'Valencia' => ['Valencia', 'Torrent', 'Gandía', 'Paterna', 'Sagunto', 'Xàtiva'],
+            'Sevilla' => ['Sevilla', 'Dos Hermanas', 'Alcalá de Guadaíra', 'Utrera', 'Coria del Río'],
+        ];
+
+        foreach ($provincias as $provincia => $poblaciones) {
+
+            for ($i = 0; $i < 150; $i++) {
+
+                Cliente::create([
+                    'nombre'            => $faker->firstName(),
+                    'primer_apellido'   => $faker->lastName(),
+                    'segundo_apellido'  => $faker->lastName(),
+
+                    'dni_cif'           => $this->generarDNI(),
+                    'email'             => $faker->unique()->safeEmail(),
+                    'telefono'          => $faker->numerify('6########'),
+
+                    'direccion'         => $faker->streetAddress(),
+                    'poblacion'         => $faker->randomElement($poblaciones),
+                    'provincia'         => $provincia,
+                    'codigo_postal'     => $faker->postcode(),
+                ]);
+            }
         }
     }
 
     private function generarDNI(): string
     {
-        // Número aleatorio de 8 cifras
         $numero = str_pad(rand(0, 99999999), 8, '0', STR_PAD_LEFT);
-
-        // Letras DNI
         $letras = "TRWAGMYFPDXBNJZSQVHLCKE";
-        $letra = $letras[$numero % 23];
-
-        return $numero . $letra;
+        return $numero . $letras[$numero % 23];
     }
 }

@@ -10,7 +10,7 @@
         --gray-soft: #f1f3f5;
     }
 
-    /* Botones más compactos para que quepan */
+
     .btn-clean {
         border-radius: .45rem !important;
         padding: .18rem .55rem !important;
@@ -19,7 +19,7 @@
         white-space: nowrap;
     }
 
-    /* Botón naranja */
+
     .btn-orange-soft {
         background-color: var(--orange-soft);
         border: 1px solid var(--orange-soft);
@@ -31,7 +31,7 @@
         color: #fff;
     }
 
-    /* Outline naranja */
+    
     .btn-outline-soft-orange {
         border: 1px solid var(--orange-soft);
         color: var(--orange-soft-dark);
@@ -42,7 +42,7 @@
         color: var(--orange-soft-dark);
     }
 
-    /* Gris */
+
     .btn-outline-gray {
         border: 1px solid #ced4da;
         color: #495057;
@@ -52,7 +52,7 @@
         background-color: var(--gray-soft);
     }
 
-    /* Rojo */
+
     .btn-outline-red {
         border: 1px solid #e03131;
         color: #e03131;
@@ -63,28 +63,26 @@
         color: #fff;
     }
 
-    /* Contenedor de botones: NO usar wrap */
+   
     .actions-nowrap {
         display: flex;
         flex-wrap: nowrap !important;
         gap: .35rem;
         justify-content: flex-end;
-        overflow-x: auto;     /* permite scroll si hay demasiados */
-        padding-bottom: 2px;  /* evita que aparezca scrollbar encima */
+        overflow-x: auto;     
+        padding-bottom: 2px;  
     }
 
-    /* Cabecera centrada */
+ 
     .table-header-orange th {
         text-align: center !important;
     }
 
-    /* Centrar texto de las celdas */
     td, th {
         vertical-align: middle !important;
         text-align: center !important;
     }
 
-    /* Hover de tabla */
     .table-hover tbody tr:hover {
         background-color: var(--orange-light-bg) !important;
     }
@@ -96,12 +94,11 @@
         <div class="alert alert-success">{{ session('success') }}</div>
     @endif
 
-    {{-- TÍTULO + BUSCADOR + NUEVO CLIENTE --}}
     <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
         <h2 class="mb-0">Listado de Clientes</h2>
 
         <div class="d-flex align-items-center gap-2">
-            {{-- Buscador instantáneo --}}
+        
             <input
                 type="text"
                 id="buscador"
@@ -118,7 +115,7 @@
         </div>
     </div>
 
-    {{-- Todo el listado va dentro de este contenedor, que se actualizará por AJAX --}}
+
     <div id="tabla-clientes">
 
         <div class="card shadow-sm">
@@ -135,6 +132,7 @@
                                 <th>Email</th>
                                 <th>Teléfono</th>
                                 <th>Provincia</th>
+                                <th>Poblacion</th>
                                 <th>Código Postal</th>
                                 <th>Acciones</th>
                             </tr>
@@ -149,6 +147,7 @@
                                     <td>{{ $cliente->email }}</td>
                                     <td>{{ $cliente->telefono }}</td>
                                     <td>{{ $cliente->provincia }}</td>
+                                    <td>{{ $cliente->poblacion }}</td>
                                     <td>{{ $cliente->codigo_postal }}</td>
 
                                     <td>
@@ -211,11 +210,11 @@
             {{ $clientes->appends(request()->query())->links() }}
         </div>
 
-    </div> {{-- /#tabla-clientes --}}
+    </div> 
 
 </div>
 
-{{-- AJAX para búsqueda automática --}}
+
 <script>
 let timer = null;
 
@@ -234,7 +233,7 @@ document.getElementById('buscador').addEventListener('keyup', function() {
                 const tabla = doc.querySelector("#tabla-clientes").innerHTML;
                 document.getElementById("tabla-clientes").innerHTML = tabla;
             });
-    }, 300); // medio segundito de margen para no hacer demasiadas peticiones
+    }, 300); 
 });
 </script>
 
