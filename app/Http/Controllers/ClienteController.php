@@ -7,12 +7,26 @@ use Illuminate\Http\Request;
 
 class ClienteController extends Controller
 {
-    public function index()
-    {
-        $clientes = Cliente::orderBy('id', 'desc')->paginate(10);
+    public function index(Request $request)
+{
+    $search = $request->input('search');
 
-        return view('clientes.index', compact('clientes'));
-    }
+    $clientes = Cliente::query()
+        ->when($search, function ($q) use ($search) {
+            $q->where(function ($q) use ($search) {
+                $q->where('nombre', 'like', "%{$search}%")
+                  ->orWhere('primer_apellido', 'like', "%{$search}%")
+                  ->orWhere('dni_cif', 'like', "%{$search}%")
+                  ->orWhere('email', 'like', "%{$search}%")
+                  ->orWhere('telefono', 'like', "%{$search}%");
+            });
+        })
+        ->orderBy('id', 'desc')
+        ->paginate(10)
+        ->withQueryString();
+
+    return view('clientes.index', compact('clientes'));
+}
 
     public function create()
     {
@@ -162,4 +176,6 @@ class ClienteController extends Controller
             ->route('clientes.index')
             ->with('success', 'Cliente eliminado correctamente.');
     }
+
+    
 }
