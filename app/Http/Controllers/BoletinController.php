@@ -824,8 +824,8 @@ class BoletinController extends Controller
         }
 
         $kw = $totalWatts / 1000;
+        return round($kw, 1);
 
-        return round($kw, 2);
     }
 
     /**

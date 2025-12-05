@@ -13,6 +13,12 @@
         body {
             background-color: #f8f9fa;
         }
+
+        .logo-massol {
+            height: 50px !important;
+            width: auto !important;
+        }
+
     </style>
 </head>
 <body>
@@ -20,8 +26,9 @@
     {{-- Barra de navegación --}}
     <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
         <div class="container">
-            <a class="navbar-brand fw-bold" href="{{ route('clientes.index') }}">
-                 BOLETINES MASSOL
+            <a class="navbar-brand fw-bold d-flex align-items-center gap-2" href="{{ route('clientes.index') }}">
+                <img src="{{ asset('images/logo.png') }}" alt="Logo" class="logo-massol">
+                    BOLETINES CLIENTES
             </a>
 
             <button class="navbar-toggler" type="button" data-bs-toggle="collapse"
