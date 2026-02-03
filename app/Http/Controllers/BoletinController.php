@@ -552,7 +552,7 @@ class BoletinController extends Controller
     }
 
     /**
-     * Potencia prevista “genérica” → reutilizamos la de derivación individual.
+     * Potencia prevista “genérica” (reutilizamos la de derivación individual()
      */
     private function calcularPotenciaPrevistaKw(Boletin $boletin): ?float
     {
